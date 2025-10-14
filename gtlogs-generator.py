@@ -238,23 +238,47 @@ class GTLogsGenerator:
             return False
 
 
-def getch():
-    """Read a single character from stdin without waiting for Enter."""
+def getch_timeout(timeout=None, fd=None, restore_settings=True):
+    """Read a single character from stdin without waiting for Enter.
+
+    Args:
+        timeout: Optional timeout in seconds. Returns None if no input within timeout.
+        fd: File descriptor (if already in raw mode, reuse it)
+        restore_settings: Whether to restore terminal settings after read
+    """
     if not IMMEDIATE_INPUT_AVAILABLE:
         return None
 
     try:
-        fd = sys.stdin.fileno()
-        old_settings = termios.tcgetattr(fd)
-        try:
+        if fd is None:
+            fd = sys.stdin.fileno()
+            old_settings = termios.tcgetattr(fd)
             tty.setraw(fd)
+            should_restore = True
+        else:
+            old_settings = None
+            should_restore = restore_settings
+
+        try:
+            if timeout is not None:
+                import select
+                ready = select.select([sys.stdin], [], [], timeout)
+                if not ready[0]:
+                    return None  # Timeout
+
             ch = sys.stdin.read(1)
             return ch
         finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+            if should_restore and old_settings is not None:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
     except (OSError, termios.error):
         # Fall back if terminal operations not supported
         return None
+
+
+def getch():
+    """Read a single character from stdin without waiting for Enter."""
+    return getch_timeout(timeout=None)
 
 
 def input_with_esc_detection(prompt):
@@ -270,68 +294,98 @@ def input_with_esc_detection(prompt):
     print(prompt, end='', flush=True)
     user_input = []
 
-    while True:
-        ch = getch()
+    # Enter raw mode ONCE and stay in it for the entire input
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
 
-        # If getch fails, fall back to regular input
-        if ch is None:
-            result = input()
-            if result.lower() in ['exit', 'quit', 'q']:
-                print("\n👋 Exiting...\n")
-                sys.exit(0)
-            return result
+    try:
+        tty.setraw(fd)
+        import select
 
-        # ESC key pressed - check if it's a standalone ESC or part of an escape sequence
-        if ch == '\x1b':
-            # Try to read the next character with a very short timeout
-            # Arrow keys send: ESC [ A/B/C/D
-            # We need to distinguish ESC alone from ESC sequences
-            import select
+        while True:
+            # Read one character while in raw mode
+            ch = sys.stdin.read(1)
 
-            # Check if more input is available immediately (no blocking)
-            if select.select([sys.stdin], [], [], 0.0)[0]:
-                # More characters available - likely an escape sequence (arrow key, etc.)
-                # Read and discard the escape sequence
-                next_ch = getch()
-                if next_ch == '[':
-                    # This is an escape sequence, read one more character and ignore
-                    getch()
-                    # Ignore arrow keys and other escape sequences
-                    continue
+            # If read fails, fall back
+            if not ch:
+                break
+
+            # ESC key pressed - check if it's a standalone ESC or part of an escape sequence
+            if ch == '\x1b':
+                # Arrow keys send: ESC [ A/B/C/D (as 3 separate character events!)
+                # Use termios VTIME/VMIN to set a read timeout on the file descriptor
+                # This distinguishes standalone ESC from escape sequences
+
+                # Get current settings
+                tty_attr = termios.tcgetattr(fd)
+                # Set timeout: VTIME = 2 (0.2 seconds), VMIN = 0 (return immediately if no data)
+                # termios.tcgetattr returns: [iflag, oflag, cflag, lflag, ispeed, ospeed, cc]
+                # cc is index 6, VTIME and VMIN are accessed within cc
+                tty_attr[6][termios.VTIME] = 2  # 0.2 second timeout
+                tty_attr[6][termios.VMIN] = 0   # Don't wait for any characters
+                termios.tcsetattr(fd, termios.TCSANOW, tty_attr)
+
+                # Try to read the next character with timeout
+                next_ch = sys.stdin.read(1)
+
+                # Restore raw mode (VMIN=1, VTIME=0 for normal operation)
+                tty.setraw(fd)
+
+                if next_ch:
+                    # Got another character - this is an escape sequence (arrow key, etc.)
+                    if next_ch == '[' or next_ch == 'O':
+                        # Standard escape sequence - read the final character
+                        # Set timeout again for the final character
+                        tty_attr = termios.tcgetattr(fd)
+                        tty_attr[6][termios.VTIME] = 2
+                        tty_attr[6][termios.VMIN] = 0
+                        termios.tcsetattr(fd, termios.TCSANOW, tty_attr)
+
+                        final_ch = sys.stdin.read(1)
+
+                        # Restore raw mode
+                        tty.setraw(fd)
+                        # Ignore the entire escape sequence
+                        continue
+                    else:
+                        # Unknown escape sequence, ignore it
+                        continue
                 else:
-                    # Unknown escape sequence, ignore it
-                    continue
-            else:
-                # No more characters - this is a standalone ESC key press
-                print("\n👋 Exiting...\n")
-                sys.exit(0)
+                    # Timeout - no more characters, this is a standalone ESC key press
+                    # Use ANSI escape to clear line from cursor to end, then print exit message
+                    print("\r\033[K👋 Exiting...\n\n")
+                    sys.exit(0)
 
-        # Backspace
-        elif ch in ('\x7f', '\x08'):
-            if user_input:
-                user_input.pop()
-                # Erase character from terminal
-                print('\b \b', end='', flush=True)
+            # Backspace
+            elif ch in ('\x7f', '\x08'):
+                if user_input:
+                    user_input.pop()
+                    # Erase character from terminal
+                    print('\b \b', end='', flush=True)
 
-        # Enter key
-        elif ch in ('\r', '\n'):
-            print()
-            result = ''.join(user_input)
-            # Check for exit commands
-            if result.lower() in ['exit', 'quit', 'q']:
-                print("\n👋 Exiting...\n")
-                sys.exit(0)
-            return result
+            # Enter key
+            elif ch in ('\r', '\n'):
+                print()
+                result = ''.join(user_input)
+                # Check for exit commands
+                if result.lower() in ['exit', 'quit', 'q']:
+                    print("\n👋 Exiting...\n")
+                    sys.exit(0)
+                return result
 
-        # Ctrl+C
-        elif ch == '\x03':
-            print()
-            raise KeyboardInterrupt
+            # Ctrl+C
+            elif ch == '\x03':
+                print()
+                raise KeyboardInterrupt
 
-        # Regular printable characters
-        elif ch.isprintable():
-            user_input.append(ch)
-            print(ch, end='', flush=True)
+            # Regular printable characters
+            elif ch.isprintable():
+                user_input.append(ch)
+                print(ch, end='', flush=True)
+
+    finally:
+        # Always restore terminal settings
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 
 def check_exit_input(user_input):
