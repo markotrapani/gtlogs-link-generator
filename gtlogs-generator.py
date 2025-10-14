@@ -11,16 +11,26 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 # For immediate keypress detection (ESC without Enter)
-try:
-    import termios  # type: ignore[import]
-    import tty  # type: ignore[import]
-    IMMEDIATE_INPUT_AVAILABLE = True
-except ImportError:
-    IMMEDIATE_INPUT_AVAILABLE = False
-    termios = None  # type: ignore[assignment]
-    tty = None  # type: ignore[assignment]
+if TYPE_CHECKING:
+    import termios
+    import tty
+    IMMEDIATE_INPUT_AVAILABLE: bool
+else:
+    try:
+        import termios
+        import tty
+        IMMEDIATE_INPUT_AVAILABLE = True
+    except ImportError:
+        IMMEDIATE_INPUT_AVAILABLE = False
+        # Define dummy modules for runtime when not available
+        class _DummyModule:
+            def __getattr__(self, name: str) -> Any:
+                raise ImportError(f"termios/tty not available on this platform")
+        termios = _DummyModule()  # type: ignore
+        tty = _DummyModule()  # type: ignore
 
 
 class GTLogsGenerator:
@@ -98,8 +108,16 @@ class GTLogsGenerator:
         return jira_id
 
     @staticmethod
-    def validate_file_path(file_path):
-        """Validate that the file path exists in the filesystem."""
+    def validate_file_path(file_path: str | None) -> str | None:
+        """Validate that the file path exists in the filesystem.
+
+        Returns:
+            str: The expanded file path if valid
+            None: If file_path is empty or None
+
+        Raises:
+            ValueError: If the file doesn't exist or isn't a file
+        """
         if not file_path:
             return None
 
@@ -149,9 +167,8 @@ class GTLogsGenerator:
             # Validate file path - will raise ValueError if file doesn't exist
             validated_path = self.validate_file_path(support_package_path)
 
-            # validated_path is guaranteed to be str here (validate_file_path returns str or raises)
-            if validated_path is None:
-                raise ValueError("File path validation failed")
+            # Assert for type checker - validate_file_path returns str when input is truthy
+            assert validated_path is not None, "validate_file_path should not return None for non-empty input"
 
             package_path = Path(validated_path)
             package_name = package_path.name
