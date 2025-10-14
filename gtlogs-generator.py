@@ -117,13 +117,22 @@ class GTLogsGenerator:
 
         return expanded_path
 
-    def generate_s3_path(self, zd_id, jira_id):
-        """Generate the S3 bucket path."""
-        zd_formatted = self.validate_zendesk_id(zd_id)
-        jira_formatted = self.validate_jira_id(jira_id)
-        return f"{self.BUCKET_BASE}/{zd_formatted}-{jira_formatted}/"
+    def generate_s3_path(self, zd_id, jira_id=None):
+        """Generate the S3 bucket path.
 
-    def generate_aws_command(self, zd_id, jira_id, support_package_path=None,
+        If jira_id is provided: s3://gt-logs/exa-to-gt/ZD-#-JIRA-#/
+        If jira_id is None: s3://gt-logs/zendesk-tickets/ZD-#/
+        """
+        zd_formatted = self.validate_zendesk_id(zd_id)
+
+        if jira_id:
+            jira_formatted = self.validate_jira_id(jira_id)
+            return f"{self.BUCKET_BASE}/{zd_formatted}-{jira_formatted}/"
+        else:
+            # ZD-only path for tickets without Jira
+            return f"s3://gt-logs/zendesk-tickets/{zd_formatted}/"
+
+    def generate_aws_command(self, zd_id, jira_id=None, support_package_path=None,
                            aws_profile=None):
         """Generate the full AWS CLI command."""
         s3_base_path = self.generate_s3_path(zd_id, jira_id)
@@ -268,13 +277,14 @@ def interactive_mode():
             except ValueError as e:
                 print(f"❌ {e}\n")
 
-        # Get Jira ID
+        # Get Jira ID (optional)
+        jira_formatted = None
         while True:
-            jira_input = input_with_esc_detection("Enter Jira ID (e.g., RED-172041 or MOD-12345): ").strip()
+            jira_input = input_with_esc_detection("Enter Jira ID (optional, press Enter to skip): ").strip()
             check_exit_input(jira_input)
             if not jira_input:
-                print("❌ Jira ID is required\n")
-                continue
+                print("✓ No Jira ID - will use zendesk-tickets path\n")
+                break
             try:
                 jira_formatted = generator.validate_jira_id(jira_input)
                 print(f"✓ Using: {jira_formatted}\n")
@@ -333,7 +343,7 @@ def interactive_mode():
         # Generate the command
         cmd, s3_path = generator.generate_aws_command(
             zd_input,
-            jira_input,
+            jira_formatted,  # Can be None for ZD-only uploads
             package_path,
             aws_profile
         )
@@ -391,7 +401,7 @@ Examples:
     parser.add_argument('zendesk_id', nargs='?',
                        help='Zendesk ticket ID (e.g., 145980 or ZD-145980)')
     parser.add_argument('jira_id', nargs='?',
-                       help='Jira ticket ID (e.g., RED-172041 or MOD-12345)')
+                       help='Jira ticket ID (optional, e.g., RED-172041 or MOD-12345)')
     parser.add_argument('-f', '--file', dest='support_package',
                        help='Path to support package file (optional)')
     parser.add_argument('-p', '--profile', dest='aws_profile',
@@ -422,8 +432,8 @@ Examples:
     if args.interactive or (not args.zendesk_id and not args.jira_id):
         return interactive_mode()
 
-    # Require both IDs for generation
-    if not args.zendesk_id or not args.jira_id:
+    # Require at least Zendesk ID for generation (Jira is now optional)
+    if not args.zendesk_id:
         parser.print_help()
         return 1
 
