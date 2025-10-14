@@ -83,7 +83,7 @@ Generated Output
 ======================================================================
 
 S3 Path:
-  s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/
+  s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/debuginfo.tar.gz
 
 AWS CLI Command:
   aws s3 cp /path/to/debuginfo.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/debuginfo.tar.gz --profile gt-logs
@@ -106,7 +106,7 @@ GT Logs Link Generator
 ======================================================================
 
 S3 Path:
-  s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/
+  s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/<support_package_name>
 
 AWS CLI Command:
   aws s3 cp <support_package_path> s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/<support_package_name>
@@ -130,7 +130,7 @@ GT Logs Link Generator
 ======================================================================
 
 S3 Path:
-  s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/
+  s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/support_package.tar.gz
 
 AWS CLI Command:
   aws s3 cp /path/to/support_package.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/support_package.tar.gz
@@ -205,7 +205,42 @@ The tool accepts various input formats:
 ./gtlogs-generator.py 145980 RED172041
 ```
 
-All produce the same output: `s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/`
+All produce the same output: `s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/<support_package_name>`
+
+## All Usage Options
+
+### Running Modes Summary
+
+| Mode | Command | When to Use |
+|------|---------|-------------|
+| **Interactive** | `./gtlogs-generator.py` | First time, or when you want guided prompts |
+| **Command-line** | `./gtlogs-generator.py <zd> <jira>` | Quick generation, scripting, or repeated use |
+| **Force Interactive** | `./gtlogs-generator.py -i` | Explicitly run interactive mode |
+
+### Complete Usage Options
+
+```bash
+# 1. INTERACTIVE MODE (Easiest)
+./gtlogs-generator.py                    # Launch interactive mode
+./gtlogs-generator.py -i                 # Force interactive mode
+
+# 2. BASIC GENERATION (templated output)
+./gtlogs-generator.py 145980 RED-172041  # Generate with ZD & Jira only
+
+# 3. WITH FILE PATH (complete command)
+./gtlogs-generator.py 145980 RED-172041 -f /path/to/package.tar.gz
+
+# 4. WITH CUSTOM AWS PROFILE (overrides default)
+./gtlogs-generator.py 145980 RED-172041 -p my-profile
+./gtlogs-generator.py 145980 RED-172041 -f /path/to/file.tar.gz -p my-profile
+
+# 5. CONFIGURATION MANAGEMENT
+./gtlogs-generator.py --set-profile gt-logs    # Set default AWS profile
+./gtlogs-generator.py --show-config            # Show current config
+
+# 6. HELP
+./gtlogs-generator.py -h                       # Show help message
+```
 
 ## Command Reference
 
