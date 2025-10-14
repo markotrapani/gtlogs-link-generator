@@ -8,15 +8,15 @@ Redis Support engineers upload customer support packages to the `gt-logs` S3 buc
 
 **Two upload scenarios supported:**
 
-1. **With Jira (Engineering escalation)**
-   When sharing support packages with Engineering via Jira tickets:
-   - S3 path: `s3://gt-logs/exa-to-gt/ZD-<ticket>-<jira>/`
-   - Links Zendesk ticket to Jira issue
-
-2. **Without Jira (ZD-only)**
+1. **Without Jira (ZD-only) - Most Common**
    For Redis Cloud environments without Engineering involvement:
    - S3 path: `s3://gt-logs/zendesk-tickets/ZD-<ticket>/`
    - Stores support packages for internal use
+
+2. **With Jira (Engineering escalation)**
+   When sharing support packages with Engineering via Jira tickets:
+   - S3 path: `s3://gt-logs/exa-to-gt/ZD-<ticket>-<jira>/`
+   - Links Zendesk ticket to Jira issue
 
 This tool automates the generation of:
 - Properly formatted S3 bucket paths for both scenarios
@@ -542,19 +542,7 @@ aws s3 cp /path/to/support_package.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-RED-1
 
 Files are organized in the `gt-logs` bucket with two different path structures:
 
-### With Jira (Engineering Escalation)
-```
-s3://gt-logs/
-└── exa-to-gt/
-    ├── ZD-145980-RED-172041/
-    │   └── support_package.tar.gz
-    ├── ZD-147823-MOD-12345/
-    │   └── customer_logs.tar.gz
-    └── ZD-148901-RED-173052/
-        └── cluster_data.tar.gz
-```
-
-### Without Jira (ZD-Only)
+### 1. Without Jira (ZD-Only) - Most Common
 ```
 s3://gt-logs/
 └── zendesk-tickets/
@@ -564,6 +552,18 @@ s3://gt-logs/
     │   └── support_package.tar.gz
     └── ZD-148901/
         └── cluster_logs.tar.gz
+```
+
+### 2. With Jira (Engineering Escalation)
+```
+s3://gt-logs/
+└── exa-to-gt/
+    ├── ZD-145980-RED-172041/
+    │   └── support_package.tar.gz
+    ├── ZD-147823-MOD-12345/
+    │   └── customer_logs.tar.gz
+    └── ZD-148901-RED-173052/
+        └── cluster_data.tar.gz
 ```
 
 ## Development
