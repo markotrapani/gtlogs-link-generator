@@ -89,6 +89,9 @@ AWS CLI Command:
   aws s3 cp /path/to/debuginfo.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/debuginfo.tar.gz --profile gt-logs
 
 ======================================================================
+
+💡 Reminder: Authenticate with AWS SSO before running the command:
+   aws sso login --profile gt-logs
 ```
 
 ### Command-Line Mode
@@ -115,6 +118,9 @@ AWS CLI Command:
 
 ℹ️  Tip: Use -f to specify the support package file path
 ℹ️  Tip: Set a default AWS profile with --set-profile
+
+💡 Reminder: Authenticate with AWS SSO before running the command:
+   aws sso login --profile <your-aws-profile>
 ```
 
 ### Generate Complete AWS CLI Command
@@ -136,6 +142,11 @@ AWS CLI Command:
   aws s3 cp /path/to/support_package.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/support_package.tar.gz
 
 ======================================================================
+
+ℹ️  Using default AWS profile: gt-logs
+
+💡 Reminder: Authenticate with AWS SSO before running the command:
+   aws sso login --profile gt-logs
 ```
 
 ### Using AWS Profile
