@@ -45,3 +45,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Sibling projects (multi-repo structure - ignore other projects in marko-projects)
+../redis-acl-builder/
+../ldap-bind-tester/
