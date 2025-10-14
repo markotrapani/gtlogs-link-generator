@@ -281,10 +281,30 @@ def input_with_esc_detection(prompt):
                 sys.exit(0)
             return result
 
-        # ESC key pressed
+        # ESC key pressed - check if it's a standalone ESC or part of an escape sequence
         if ch == '\x1b':
-            print("\n👋 Exiting...\n")
-            sys.exit(0)
+            # Try to read the next character with a very short timeout
+            # Arrow keys send: ESC [ A/B/C/D
+            # We need to distinguish ESC alone from ESC sequences
+            import select
+
+            # Check if more input is available immediately (no blocking)
+            if select.select([sys.stdin], [], [], 0.0)[0]:
+                # More characters available - likely an escape sequence (arrow key, etc.)
+                # Read and discard the escape sequence
+                next_ch = getch()
+                if next_ch == '[':
+                    # This is an escape sequence, read one more character and ignore
+                    getch()
+                    # Ignore arrow keys and other escape sequences
+                    continue
+                else:
+                    # Unknown escape sequence, ignore it
+                    continue
+            else:
+                # No more characters - this is a standalone ESC key press
+                print("\n👋 Exiting...\n")
+                sys.exit(0)
 
         # Backspace
         elif ch in ('\x7f', '\x08'):
