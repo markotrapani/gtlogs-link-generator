@@ -435,10 +435,11 @@ def interactive_mode():
         # If we have a real file path (not templated), offer to execute
         if package_path:
             print()
-            execute_now = input_with_esc_detection("Execute this command now? (y/n): ").strip().lower()
+            execute_now = input_with_esc_detection("Execute this command now? (Y/n): ").strip().lower()
             check_exit_input(execute_now)
 
-            if execute_now in ['y', 'yes']:
+            # Default to 'yes' if user just presses Enter
+            if execute_now == '' or execute_now in ['y', 'yes']:
                 # Determine which profile to use
                 profile_to_use = aws_profile
 

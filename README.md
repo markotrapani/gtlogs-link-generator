@@ -108,7 +108,7 @@ AWS CLI Command:
 
 ======================================================================
 
-Execute this command now? (y/n): y
+Execute this command now? (Y/n):
 
 🔐 Authenticating with AWS SSO (profile: gt-logs)...
 ✓ AWS SSO authentication successful
@@ -119,7 +119,7 @@ Execute this command now? (y/n): y
 ✅ Upload successful!
 ```
 
-**Note:** The tool automatically prompts to execute the command when a file path is provided. It will check AWS authentication and run `aws sso login` if needed.
+**Note:** The tool automatically prompts to execute the command when a file path is provided. Press Enter (default: yes) or 'y' to upload, or 'n' to skip. It will check AWS authentication and run `aws sso login` if needed.
 
 **ZD-Only Example (No Jira):**
 
@@ -534,7 +534,8 @@ In interactive mode, the tool validates inputs in real-time and allows you to re
 #    - Enter file path: ~/Downloads/support_package.tar.gz
 #    - Press Enter to use default AWS profile (gt-logs)
 
-# 3. When prompted "Execute this command now? (y/n):", enter 'y'
+# 3. When prompted "Execute this command now? (Y/n):", press Enter or 'y'
+#    - Default is 'yes' - just press Enter to upload
 #    - Tool automatically checks authentication
 #    - Runs 'aws sso login' if needed
 #    - Uploads the file to S3
