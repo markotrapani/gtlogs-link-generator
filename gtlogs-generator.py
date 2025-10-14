@@ -14,11 +14,13 @@ from pathlib import Path
 
 # For immediate keypress detection (ESC without Enter)
 try:
-    import termios
-    import tty
+    import termios  # type: ignore[import]
+    import tty  # type: ignore[import]
     IMMEDIATE_INPUT_AVAILABLE = True
 except ImportError:
     IMMEDIATE_INPUT_AVAILABLE = False
+    termios = None  # type: ignore[assignment]
+    tty = None  # type: ignore[assignment]
 
 
 class GTLogsGenerator:
@@ -146,6 +148,10 @@ class GTLogsGenerator:
         if support_package_path:
             # Validate file path - will raise ValueError if file doesn't exist
             validated_path = self.validate_file_path(support_package_path)
+
+            # validated_path is guaranteed to be str here (validate_file_path returns str or raises)
+            if validated_path is None:
+                raise ValueError("File path validation failed")
 
             package_path = Path(validated_path)
             package_name = package_path.name
@@ -281,7 +287,7 @@ def getch():
     return getch_timeout(timeout=None)
 
 
-def input_with_esc_detection(prompt):
+def input_with_esc_detection(prompt: str) -> str:
     """Enhanced input that detects ESC key immediately without requiring Enter."""
     # Check if we're in an interactive terminal
     try:
