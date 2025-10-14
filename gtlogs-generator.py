@@ -47,16 +47,27 @@ class GTLogsGenerator:
 
     @staticmethod
     def validate_zendesk_id(zd_id):
-        """Validate and format Zendesk ID."""
-        # Remove any non-digit characters
-        zd_number = re.sub(r'\D', '', str(zd_id))
-        if not zd_number:
-            raise ValueError("Invalid Zendesk ID: must contain digits")
+        """Validate and format Zendesk ID - must be numerical only."""
+        zd_id = str(zd_id).strip()
+
+        # If it starts with ZD- or zd-, extract the number part
+        if zd_id.upper().startswith('ZD-'):
+            zd_number = zd_id[3:]
+        else:
+            zd_number = zd_id
+
+        # Validate that it's purely numerical
+        if not zd_number.isdigit():
+            raise ValueError("Invalid Zendesk ID: must be numerical only (e.g., 145980 or ZD-145980)")
+
+        if len(zd_number) == 0:
+            raise ValueError("Invalid Zendesk ID: cannot be empty")
+
         return f"ZD-{zd_number}"
 
     @staticmethod
     def validate_jira_id(jira_id):
-        """Validate and format Jira ID."""
+        """Validate and format Jira ID - must be RED-# or MOD-# with numerical suffix."""
         # Check if it matches RED-# or MOD-# format
         jira_id = jira_id.upper().strip()
 
@@ -69,11 +80,34 @@ class GTLogsGenerator:
         if match:
             return f"{match.group(1)}-{match.group(2)}"
 
-        # Validate full format
+        # Validate full format - must be RED-# or MOD-# with numerical suffix only
         if not re.match(r'^(RED|MOD)-\d+$', jira_id):
-            raise ValueError("Invalid Jira ID: must be in format RED-# or MOD-#")
+            raise ValueError("Invalid Jira ID: must be in format RED-# or MOD-# with numerical suffix (e.g., RED-172041 or MOD-12345)")
 
         return jira_id
+
+    @staticmethod
+    def validate_file_path(file_path):
+        """Validate that the file path exists in the filesystem."""
+        if not file_path:
+            return None
+
+        file_path = str(file_path).strip()
+        if not file_path:
+            return None
+
+        # Expand user paths like ~/
+        expanded_path = os.path.expanduser(file_path)
+
+        # Check if file exists
+        if not os.path.exists(expanded_path):
+            raise ValueError(f"File does not exist: {file_path}")
+
+        # Check if it's actually a file (not a directory)
+        if not os.path.isfile(expanded_path):
+            raise ValueError(f"Path is not a file: {file_path}")
+
+        return expanded_path
 
     def generate_s3_path(self, zd_id, jira_id):
         """Generate the S3 bucket path."""
@@ -92,14 +126,14 @@ class GTLogsGenerator:
 
         # Build command
         if support_package_path:
-            package_path = Path(support_package_path)
-            if not package_path.exists():
-                print(f"⚠️  Warning: File does not exist: {support_package_path}")
+            # Validate file path - will raise ValueError if file doesn't exist
+            validated_path = self.validate_file_path(support_package_path)
 
+            package_path = Path(validated_path)
             package_name = package_path.name
             s3_full_path = f"{s3_base_path}{package_name}"
 
-            cmd = f"aws s3 cp {support_package_path} {s3_full_path}"
+            cmd = f"aws s3 cp {validated_path} {s3_full_path}"
         else:
             s3_full_path = f"{s3_base_path}<support_package_name>"
             cmd = f"aws s3 cp <support_package_path> {s3_full_path}"
@@ -149,15 +183,25 @@ def interactive_mode():
                 print(f"❌ {e}\n")
 
         # Get support package path (optional)
-        package_path = input("Enter support package path (optional, press Enter to skip): ").strip()
-        if package_path:
-            if os.path.exists(package_path):
-                print(f"✓ File found: {package_path}\n")
-            else:
-                print(f"⚠️  Warning: File does not exist: {package_path}\n")
-        else:
-            package_path = None
-            print("✓ Will generate template command\n")
+        while True:
+            package_path = input("Enter support package path (optional, press Enter to skip): ").strip()
+            if not package_path:
+                package_path = None
+                print("✓ Will generate template command\n")
+                break
+            try:
+                validated_path = generator.validate_file_path(package_path)
+                print(f"✓ File found: {validated_path}\n")
+                package_path = validated_path
+                break
+            except ValueError as e:
+                print(f"❌ {e}")
+                retry = input("Try again? (y/n): ").strip().lower()
+                if retry not in ['y', 'yes']:
+                    package_path = None
+                    print("✓ Skipping file path, will generate template command\n")
+                    break
+                print()
 
         # Get AWS profile
         default_profile = generator.get_default_aws_profile()

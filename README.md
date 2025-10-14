@@ -280,11 +280,83 @@ The tool stores configuration in `~/.gtlogs-config.ini`:
 ./gtlogs-generator.py --set-profile redis-support
 ```
 
+## Input Validation
+
+The tool performs strict validation on all inputs to ensure data integrity:
+
+### Zendesk ID Validation
+
+- ✅ **Must be numerical only**
+- ✅ Accepts: `145980`, `ZD-145980`, `zd-145980`
+- ❌ Rejects: `145980abc`, `ZD-abc123`, any non-numerical characters
+- 📤 **Output format:** `ZD-145980`
+
+**Examples:**
+```bash
+# Valid
+./gtlogs-generator.py 145980 RED-172041        ✓
+./gtlogs-generator.py ZD-145980 RED-172041     ✓
+
+# Invalid
+./gtlogs-generator.py 145980abc RED-172041     ✗ Error: must be numerical only
+./gtlogs-generator.py ZD-abc RED-172041        ✗ Error: must be numerical only
+```
+
+### Jira ID Validation
+
+- ✅ **Must be RED-# or MOD-# with numerical suffix only**
+- ✅ Accepts: `RED-172041`, `MOD-12345`, `RED172041` (auto-adds hyphen)
+- ❌ Rejects: `RED-abc`, `MOD-123abc`, `ABC-123`, numbers without prefix
+- 📤 **Output format:** `RED-172041` or `MOD-12345`
+
+**Supported prefixes:**
+- `RED-` for Redis Enterprise bugs
+- `MOD-` for Module bugs
+
+**Examples:**
+```bash
+# Valid
+./gtlogs-generator.py 145980 RED-172041        ✓
+./gtlogs-generator.py 145980 MOD-12345         ✓
+./gtlogs-generator.py 145980 RED172041         ✓ (auto-formats to RED-172041)
+
+# Invalid
+./gtlogs-generator.py 145980 RED-172041abc     ✗ Error: numerical suffix required
+./gtlogs-generator.py 145980 ABC-12345         ✗ Error: must be RED-# or MOD-#
+./gtlogs-generator.py 145980 172041            ✗ Error: must include prefix
+```
+
+### File Path Validation
+
+- ✅ **File must exist in the filesystem**
+- ✅ **Path must point to a file, not a directory**
+- ✅ Supports tilde expansion (`~/Downloads/file.tar.gz`)
+- ❌ Rejects non-existent files and directories
+
+**Examples:**
+```bash
+# Valid
+./gtlogs-generator.py 145980 RED-172041 -f /path/to/existing/file.tar.gz     ✓
+./gtlogs-generator.py 145980 RED-172041 -f ~/Downloads/package.tar.gz        ✓
+
+# Invalid
+./gtlogs-generator.py 145980 RED-172041 -f /nonexistent/file.tar.gz          ✗ Error: File does not exist
+./gtlogs-generator.py 145980 RED-172041 -f /path/to/directory                ✗ Error: Path is not a file
+```
+
+### Interactive Mode Validation
+
+In interactive mode, the tool validates inputs in real-time and allows you to retry:
+
+- **Invalid Zendesk/Jira IDs:** Prompts you to re-enter
+- **Invalid file paths:** Asks if you want to try again or skip
+- **Helpful error messages:** Shows exactly what went wrong
+
 ## ID Format Reference
 
 ### Zendesk IDs
 
-- **Accepted formats:** `145980`, `ZD-145980`, `zd-145980`
+- **Accepted formats:** `145980`, `ZD-145980`, `zd-145980` (numerical only)
 - **Output format:** `ZD-145980`
 
 ### Jira IDs
@@ -293,6 +365,7 @@ The tool stores configuration in `~/.gtlogs-config.ini`:
   - `RED-172041` (Redis Enterprise bugs)
   - `MOD-12345` (Module bugs)
   - `RED172041` (auto-adds hyphen)
+- **Must have numerical suffix only**
 - **Output format:** `RED-172041` or `MOD-12345`
 
 ## Workflow Examples
@@ -332,21 +405,51 @@ The tool stores configuration in `~/.gtlogs-config.ini`:
 
 ## Error Handling
 
-The tool validates inputs and provides helpful error messages:
+The tool performs strict validation and provides clear error messages. **All validations are enforced** - the tool will not generate output for invalid inputs.
+
+### Command-Line Mode Errors
 
 ```bash
-# Invalid Jira format
+# Invalid Zendesk ID (non-numerical)
+./gtlogs-generator.py 145980abc RED-172041
+# ❌ Error: Invalid Zendesk ID: must be numerical only (e.g., 145980 or ZD-145980)
+
+# Invalid Jira format (missing prefix)
 ./gtlogs-generator.py 145980 12345
-# Error: Jira ID must include prefix (RED- or MOD-)
+# ❌ Error: Jira ID must include prefix (RED- or MOD-)
 
 # Invalid Jira prefix
 ./gtlogs-generator.py 145980 ABC-12345
-# Error: Invalid Jira ID: must be in format RED-# or MOD-#
+# ❌ Error: Invalid Jira ID: must be in format RED-# or MOD-# with numerical suffix
 
-# File doesn't exist (warning only)
+# Invalid Jira suffix (non-numerical)
+./gtlogs-generator.py 145980 RED-172041abc
+# ❌ Error: Invalid Jira ID: must be in format RED-# or MOD-# with numerical suffix
+
+# File doesn't exist
 ./gtlogs-generator.py 145980 RED-172041 -f /nonexistent/file.tar.gz
-# ⚠️  Warning: File does not exist: /nonexistent/file.tar.gz
-# (still generates the command)
+# ❌ Error: File does not exist: /nonexistent/file.tar.gz
+
+# Path is a directory, not a file
+./gtlogs-generator.py 145980 RED-172041 -f /Users/username/Downloads
+# ❌ Error: Path is not a file: /Users/username/Downloads
+```
+
+### Interactive Mode Error Recovery
+
+In interactive mode, validation errors prompt you to retry:
+
+```
+Enter Zendesk ticket ID (e.g., 145980): 145980abc
+❌ Invalid Zendesk ID: must be numerical only (e.g., 145980 or ZD-145980)
+
+Enter Zendesk ticket ID (e.g., 145980): 145980
+✓ Using: ZD-145980
+
+Enter support package path (optional, press Enter to skip): /nonexistent/file.tar.gz
+❌ File does not exist: /nonexistent/file.tar.gz
+Try again? (y/n): n
+✓ Skipping file path, will generate template command
 ```
 
 ## Requirements
