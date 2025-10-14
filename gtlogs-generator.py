@@ -475,7 +475,7 @@ def interactive_mode():
             check_exit_input(package_path)
             if not package_path:
                 package_path = None
-                print("✓ Will generate template command\n")
+                print("\n✓ Will generate template command\n")
                 break
             try:
                 validated_path = generator.validate_file_path(package_path)
@@ -515,7 +515,7 @@ def interactive_mode():
             print(f"\n✓ Using default profile: {default_profile}\n")
         else:
             aws_profile = None
-            print("✓ No AWS profile specified\n")
+            print("\n✓ No AWS profile specified\n")
 
         # Generate the command
         cmd, s3_path = generator.generate_aws_command(
