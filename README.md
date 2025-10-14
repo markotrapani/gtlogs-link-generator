@@ -64,8 +64,8 @@ Run the script without arguments to enter interactive mode:
 ```
 
 The script will guide you through entering:
-1. Zendesk ticket ID
-2. Jira ID
+1. Zendesk ticket ID (required)
+2. Jira ID (optional - press Enter to skip for ZD-only uploads)
 3. Support package path (optional)
 4. AWS profile (optional, uses default if configured)
 
@@ -77,12 +77,12 @@ GT Logs Link Generator - Interactive Mode
 ======================================================================
 
 Generate S3 URLs and AWS CLI commands for Redis Support packages
-Press Ctrl+C at any time to exit
+Press ESC to exit immediately, or Ctrl+C, or type 'exit'/'q' at any prompt
 
 Enter Zendesk ticket ID (e.g., 145980): 145980
 ✓ Using: ZD-145980
 
-Enter Jira ID (e.g., RED-172041 or MOD-12345): RED-172041
+Enter Jira ID (e.g., RED-172041 or MOD-12345, press Enter to skip): RED-172041
 ✓ Using: RED-172041
 
 Enter support package path (optional, press Enter to skip): /path/to/debuginfo.tar.gz
@@ -100,6 +100,37 @@ S3 Path:
 
 AWS CLI Command:
   aws s3 cp /path/to/debuginfo.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/debuginfo.tar.gz --profile gt-logs
+
+======================================================================
+
+💡 Reminder: Authenticate with AWS SSO before running the command:
+   aws sso login --profile gt-logs
+```
+
+**ZD-Only Example (No Jira):**
+
+```
+Enter Zendesk ticket ID (e.g., 145980): 145980
+✓ Using: ZD-145980
+
+Enter Jira ID (e.g., RED-172041 or MOD-12345, press Enter to skip):
+✓ No Jira ID - will use zendesk-tickets path
+
+Enter support package path (optional, press Enter to skip): /path/to/debuginfo.tar.gz
+✓ File found: /path/to/debuginfo.tar.gz
+
+Enter AWS profile (press Enter for default 'gt-logs'):
+✓ Using default profile: gt-logs
+
+======================================================================
+Generated Output
+======================================================================
+
+S3 Path:
+  s3://gt-logs/zendesk-tickets/ZD-145980/debuginfo.tar.gz
+
+AWS CLI Command:
+  aws s3 cp /path/to/debuginfo.tar.gz s3://gt-logs/zendesk-tickets/ZD-145980/debuginfo.tar.gz --profile gt-logs
 
 ======================================================================
 
