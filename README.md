@@ -69,12 +69,12 @@ Run the script without arguments to enter interactive mode:
 ```
 
 **Keyboard Controls:**
-- **ESC** - Exit immediately (standalone ESC key only)
+- **ESC** - Exit immediately (standalone ESC key only - arrow keys won't trigger exit)
 - **Ctrl+C** - Exit
 - **Backspace** - Delete characters
 - **Enter** - Submit input
-- **Arrow keys** - Ignored (no effect)
-- Type `exit`, `quit`, or `q` - Exit
+- **Arrow keys** - Properly ignored (no effect, won't exit)
+- Type `exit`, `quit`, or `q` at any prompt - Exit
 
 The script will guide you through entering:
 1. Zendesk ticket ID (required)
