@@ -68,11 +68,20 @@ Run the script without arguments to enter interactive mode:
 ./gtlogs-generator.py
 ```
 
+**Keyboard Controls:**
+- **ESC** - Exit immediately (standalone ESC key only)
+- **Ctrl+C** - Exit
+- **Backspace** - Delete characters
+- **Enter** - Submit input
+- **Arrow keys** - Ignored (no effect)
+- Type `exit`, `quit`, or `q` - Exit
+
 The script will guide you through entering:
 1. Zendesk ticket ID (required)
 2. Jira ID (optional - press Enter to skip for ZD-only uploads)
 3. Support package path (optional)
 4. AWS profile (optional, uses default if configured)
+5. Execute upload? (default: yes - press Enter to upload)
 
 **Example Interactive Session:**
 
