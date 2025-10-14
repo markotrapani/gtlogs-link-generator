@@ -145,6 +145,17 @@ class GTLogsGenerator:
         return cmd, s3_full_path
 
 
+def check_exit_input(user_input):
+    """Check if user wants to exit (ESC key or exit commands)."""
+    if not user_input:
+        return False
+    # Check for ESC character (ASCII 27) or escape sequences
+    if '\x1b' in user_input or user_input.lower() in ['exit', 'quit', 'q']:
+        print("\n👋 Exiting...\n")
+        sys.exit(0)
+    return False
+
+
 def interactive_mode():
     """Run the generator in interactive mode."""
     generator = GTLogsGenerator()
@@ -153,12 +164,13 @@ def interactive_mode():
     print("GT Logs Link Generator - Interactive Mode")
     print("="*70)
     print("\nGenerate S3 URLs and AWS CLI commands for Redis Support packages")
-    print("Press Ctrl+C at any time to exit\n")
+    print("Press Ctrl+C or ESC to exit, or type 'exit' or 'q' at any prompt\n")
 
     try:
         # Get Zendesk ID
         while True:
             zd_input = input("Enter Zendesk ticket ID (e.g., 145980): ").strip()
+            check_exit_input(zd_input)
             if not zd_input:
                 print("❌ Zendesk ID is required\n")
                 continue
@@ -172,6 +184,7 @@ def interactive_mode():
         # Get Jira ID
         while True:
             jira_input = input("Enter Jira ID (e.g., RED-172041 or MOD-12345): ").strip()
+            check_exit_input(jira_input)
             if not jira_input:
                 print("❌ Jira ID is required\n")
                 continue
@@ -185,6 +198,7 @@ def interactive_mode():
         # Get support package path (optional)
         while True:
             package_path = input("Enter support package path (optional, press Enter to skip): ").strip()
+            check_exit_input(package_path)
             if not package_path:
                 package_path = None
                 print("✓ Will generate template command\n")
@@ -197,6 +211,7 @@ def interactive_mode():
             except ValueError as e:
                 print(f"❌ {e}")
                 retry = input("Try again? (y/n): ").strip().lower()
+                check_exit_input(retry)
                 if retry not in ['y', 'yes']:
                     package_path = None
                     print("✓ Skipping file path, will generate template command\n")
@@ -211,11 +226,13 @@ def interactive_mode():
             profile_prompt = "Enter AWS profile (optional, press Enter to skip): "
 
         aws_profile_input = input(profile_prompt).strip()
+        check_exit_input(aws_profile_input)
 
         if aws_profile_input:
             aws_profile = aws_profile_input
             # Ask if they want to save as default
             save_default = input(f"\nSave '{aws_profile}' as default profile? (y/n): ").strip().lower()
+            check_exit_input(save_default)
             if save_default in ['y', 'yes']:
                 generator._save_config(aws_profile)
                 print()
