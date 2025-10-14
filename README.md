@@ -210,69 +210,98 @@ AWS CLI Command:
 
 ## Usage Examples
 
-### Example 1: ZD-Only Upload (No Jira) - Most Common
+### Use Case 1: Redis Cloud Without Jira (Most Common)
 
-For Redis Cloud environments without Engineering escalation:
+For Redis Cloud environments without Engineering escalation.
 
+**Command-line:**
 ```bash
 ./gtlogs-generator.py 145980 -f /path/to/support_package.tar.gz
 ```
 
-Generates:
+**Interactive mode:**
+```bash
+./gtlogs-generator.py
+# Enter ZD: 145980
+# Press Enter to skip Jira
+# Enter file path: /path/to/support_package.tar.gz
+```
+
+**Generates:**
 ```bash
 aws s3 cp /path/to/support_package.tar.gz s3://gt-logs/zendesk-tickets/ZD-145980/support_package.tar.gz --profile gt-logs
 ```
 
-**Use when:**
+**When to use:**
 - Support package doesn't require Engineering review
 - Internal Redis Cloud troubleshooting
 - No Jira ticket associated with the issue
 
-### Example 2: Interactive Mode (Easiest)
+---
 
-Just run without arguments and follow the prompts:
+### Use Case 2: Redis Cloud with Jira (Primary Method for Engineering Escalation)
 
+For Redis Cloud issues escalated to Engineering via RED or MOD Jira tickets.
+
+**Command-line:**
+```bash
+# Redis Enterprise bug (RED)
+./gtlogs-generator.py 147823 RED-172041 -f ./support_pkg_cluster_1.tar.gz
+
+# Module bug (MOD)
+./gtlogs-generator.py 145980 MOD-12345 -f /path/to/customer_support.tar.gz
+```
+
+**Interactive mode:**
 ```bash
 ./gtlogs-generator.py
+# Enter ZD: 147823
+# Enter Jira: RED-172041
+# Enter file path: ./support_pkg_cluster_1.tar.gz
 ```
 
-Features:
-- ✅ Validates input in real-time
-- ✅ Shows formatted IDs as you type
-- ✅ Optional Jira ID (press Enter to skip for ZD-only)
-- ✅ Optional file path entry (press Enter to skip)
-- ✅ Uses default AWS profile automatically
-- ✅ Can save new default profiles on the fly
-
-### Example 3: Module Bug (MOD Jira)
-
-```bash
-./gtlogs-generator.py 145980 MOD-12345 -f /Downloads/customer_support.tar.gz
-```
-
-Generates:
-```bash
-aws s3 cp /Downloads/customer_support.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-MOD-12345/customer_support.tar.gz --profile gt-logs
-```
-
-### Example 4: Redis Cloud or Redis Software with Jira
-
-For issues escalated to Engineering (both Redis Cloud and Redis Software):
-
-```bash
-./gtlogs-generator.py 147823 RED-172041 -f ./support_pkg_cluster_1.tar.gz
-```
-
-Generates:
+**Generates:**
 ```bash
 aws s3 cp ./support_pkg_cluster_1.tar.gz s3://gt-logs/exa-to-gt/ZD-147823-RED-172041/support_pkg_cluster_1.tar.gz --profile gt-logs
 ```
 
-**Use when:**
-- **Redis Cloud with Jira** - Primary use case (this tool is the best method)
-- **Redis Software with Jira** - Alternative method (note: @exatogt automation with Files.com handles most Redis Software uploads automatically)
+**When to use:**
+- Redis Cloud issues that require Engineering involvement
+- Sharing support packages via Jira (RED or MOD tickets)
+- **This tool is the primary/best method for this scenario**
 
-### Example 5: Flexible ID Formats
+---
+
+### Use Case 3: Redis Software with Jira (Alternative Method)
+
+For Redis Software (on-prem) issues escalated to Engineering.
+
+**Command-line:**
+```bash
+./gtlogs-generator.py 148901 RED-173052 -f /path/to/rs_support_pkg.tar.gz
+```
+
+**Interactive mode:**
+```bash
+./gtlogs-generator.py
+# Enter ZD: 148901
+# Enter Jira: RED-173052
+# Enter file path: /path/to/rs_support_pkg.tar.gz
+```
+
+**Generates:**
+```bash
+aws s3 cp /path/to/rs_support_pkg.tar.gz s3://gt-logs/exa-to-gt/ZD-148901-RED-173052/rs_support_pkg.tar.gz --profile gt-logs
+```
+
+**When to use:**
+- Redis Software issues that require Engineering involvement
+- **Note:** Most Redis Software uploads are handled automatically via @exatogt automation with Files.com
+- Use this tool when the automation isn't available or applicable
+
+---
+
+### Flexible ID Formats
 
 The tool accepts various input formats:
 
