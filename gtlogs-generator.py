@@ -460,7 +460,7 @@ def interactive_mode():
             jira_input = input_with_esc_detection("Enter Jira ID (e.g., RED-172041 or MOD-12345, press Enter to skip): ").strip()
             check_exit_input(jira_input)
             if not jira_input:
-                print("✓ No Jira ID - will use zendesk-tickets path\n")
+                print("\n✓ No Jira ID - will use zendesk-tickets path\n")
                 break
             try:
                 jira_formatted = generator.validate_jira_id(jira_input)
