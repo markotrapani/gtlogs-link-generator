@@ -344,7 +344,15 @@ def interactive_mode():
         print("="*70)
         print(f"\nS3 Path:\n  {s3_path}")
         print(f"\nAWS CLI Command:\n  {cmd}")
-        print("\n" + "="*70 + "\n")
+        print("\n" + "="*70)
+
+        # Show AWS SSO login reminder if profile is specified
+        if aws_profile:
+            print(f"\n💡 Reminder: Authenticate with AWS SSO before running the command:")
+            print(f"   aws sso login --profile {aws_profile}\n")
+        else:
+            print(f"\n💡 Reminder: Authenticate with AWS SSO before running the command:")
+            print(f"   aws sso login --profile <your-aws-profile>\n")
 
         return 0
 
@@ -441,10 +449,20 @@ Examples:
             print("\nℹ️  Tip: Use -f to specify the support package file path")
 
         default_profile = generator.get_default_aws_profile()
+        used_profile = args.aws_profile or default_profile
+
         if not args.aws_profile and not default_profile:
             print("ℹ️  Tip: Set a default AWS profile with --set-profile")
         elif default_profile and not args.aws_profile:
             print(f"ℹ️  Using default AWS profile: {default_profile}")
+
+        # Show AWS SSO login reminder
+        if used_profile:
+            print(f"\n💡 Reminder: Authenticate with AWS SSO before running the command:")
+            print(f"   aws sso login --profile {used_profile}")
+        else:
+            print(f"\n💡 Reminder: Authenticate with AWS SSO before running the command:")
+            print(f"   aws sso login --profile <your-aws-profile>")
 
         print()
         return 0
