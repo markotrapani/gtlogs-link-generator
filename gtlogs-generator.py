@@ -110,6 +110,103 @@ class GTLogsGenerator:
         return cmd, s3_path
 
 
+def interactive_mode():
+    """Run the generator in interactive mode."""
+    generator = GTLogsGenerator()
+
+    print("\n" + "="*70)
+    print("GT Logs Link Generator - Interactive Mode")
+    print("="*70)
+    print("\nGenerate S3 URLs and AWS CLI commands for Redis Support packages")
+    print("Press Ctrl+C at any time to exit\n")
+
+    try:
+        # Get Zendesk ID
+        while True:
+            zd_input = input("Enter Zendesk ticket ID (e.g., 145980): ").strip()
+            if not zd_input:
+                print("❌ Zendesk ID is required\n")
+                continue
+            try:
+                zd_formatted = generator.validate_zendesk_id(zd_input)
+                print(f"✓ Using: {zd_formatted}\n")
+                break
+            except ValueError as e:
+                print(f"❌ {e}\n")
+
+        # Get Jira ID
+        while True:
+            jira_input = input("Enter Jira ID (e.g., RED-172041 or MOD-12345): ").strip()
+            if not jira_input:
+                print("❌ Jira ID is required\n")
+                continue
+            try:
+                jira_formatted = generator.validate_jira_id(jira_input)
+                print(f"✓ Using: {jira_formatted}\n")
+                break
+            except ValueError as e:
+                print(f"❌ {e}\n")
+
+        # Get support package path (optional)
+        package_path = input("Enter support package path (optional, press Enter to skip): ").strip()
+        if package_path:
+            if os.path.exists(package_path):
+                print(f"✓ File found: {package_path}\n")
+            else:
+                print(f"⚠️  Warning: File does not exist: {package_path}\n")
+        else:
+            package_path = None
+            print("✓ Will generate template command\n")
+
+        # Get AWS profile
+        default_profile = generator.get_default_aws_profile()
+        if default_profile:
+            profile_prompt = f"Enter AWS profile (press Enter for default '{default_profile}'): "
+        else:
+            profile_prompt = "Enter AWS profile (optional, press Enter to skip): "
+
+        aws_profile_input = input(profile_prompt).strip()
+
+        if aws_profile_input:
+            aws_profile = aws_profile_input
+            # Ask if they want to save as default
+            save_default = input(f"\nSave '{aws_profile}' as default profile? (y/n): ").strip().lower()
+            if save_default in ['y', 'yes']:
+                generator._save_config(aws_profile)
+                print()
+        elif default_profile:
+            aws_profile = default_profile
+            print(f"✓ Using default profile: {default_profile}\n")
+        else:
+            aws_profile = None
+            print("✓ No AWS profile specified\n")
+
+        # Generate the command
+        cmd, s3_path = generator.generate_aws_command(
+            zd_input,
+            jira_input,
+            package_path,
+            aws_profile
+        )
+
+        # Display results
+        print("="*70)
+        print("Generated Output")
+        print("="*70)
+        print(f"\nS3 Path:\n  {s3_path}")
+        print(f"\nAWS CLI Command:\n  {cmd}")
+        print("\n" + "="*70 + "\n")
+
+        return 0
+
+    except KeyboardInterrupt:
+        print("\n\n👋 Exiting...\n")
+        return 0
+    except Exception as e:
+        print(f"\n❌ Error: {e}\n", file=sys.stderr)
+        return 1
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -117,6 +214,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  # Interactive mode (no arguments)
+  %(prog)s
+
   # Generate S3 path only
   %(prog)s 145980 RED-172041
 
@@ -143,6 +243,8 @@ Examples:
                        help='Set default AWS profile')
     parser.add_argument('--show-config', action='store_true',
                        help='Show current configuration')
+    parser.add_argument('-i', '--interactive', action='store_true',
+                       help='Run in interactive mode')
 
     args = parser.parse_args()
 
@@ -158,6 +260,10 @@ Examples:
         print(f"Configuration file: {generator.CONFIG_FILE}")
         print(f"Default AWS profile: {default_profile if default_profile else '(not set)'}")
         return 0
+
+    # Interactive mode if no arguments or -i flag
+    if args.interactive or (not args.zendesk_id and not args.jira_id):
+        return interactive_mode()
 
     # Require both IDs for generation
     if not args.zendesk_id or not args.jira_id:

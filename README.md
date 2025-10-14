@@ -42,7 +42,58 @@ sudo ln -s /path/to/gtlogs-link-generator/gtlogs-generator.py /usr/local/bin/gtl
 
 ## Quick Start
 
-### Basic Usage - Generate S3 Path
+### Interactive Mode (Recommended)
+
+Run the script without arguments to enter interactive mode:
+
+```bash
+./gtlogs-generator.py
+```
+
+The script will guide you through entering:
+1. Zendesk ticket ID
+2. Jira ID
+3. Support package path (optional)
+4. AWS profile (optional, uses default if configured)
+
+**Example Interactive Session:**
+
+```
+======================================================================
+GT Logs Link Generator - Interactive Mode
+======================================================================
+
+Generate S3 URLs and AWS CLI commands for Redis Support packages
+Press Ctrl+C at any time to exit
+
+Enter Zendesk ticket ID (e.g., 145980): 145980
+✓ Using: ZD-145980
+
+Enter Jira ID (e.g., RED-172041 or MOD-12345): RED-172041
+✓ Using: RED-172041
+
+Enter support package path (optional, press Enter to skip): /path/to/debuginfo.tar.gz
+✓ File found: /path/to/debuginfo.tar.gz
+
+Enter AWS profile (press Enter for default 'gt-logs'):
+✓ Using default profile: gt-logs
+
+======================================================================
+Generated Output
+======================================================================
+
+S3 Path:
+  s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/
+
+AWS CLI Command:
+  aws s3 cp /path/to/debuginfo.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/debuginfo.tar.gz --profile gt-logs
+
+======================================================================
+```
+
+### Command-Line Mode
+
+For quick one-time usage or scripting:
 
 ```bash
 ./gtlogs-generator.py 145980 RED-172041
@@ -102,7 +153,22 @@ AWS CLI Command:
 
 ## Usage Examples
 
-### Example 1: Module Bug (MOD Jira)
+### Example 1: Interactive Mode (Easiest)
+
+Just run without arguments and follow the prompts:
+
+```bash
+./gtlogs-generator.py
+```
+
+Features:
+- ✅ Validates input in real-time
+- ✅ Shows formatted IDs as you type
+- ✅ Optional file path entry (press Enter to skip)
+- ✅ Uses default AWS profile automatically
+- ✅ Can save new default profiles on the fly
+
+### Example 2: Module Bug (MOD Jira)
 
 ```bash
 ./gtlogs-generator.py 145980 MOD-12345 -f /Downloads/customer_support.tar.gz
@@ -110,10 +176,10 @@ AWS CLI Command:
 
 Generates:
 ```bash
-aws s3 cp /Downloads/customer_support.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-MOD-12345/customer_support.tar.gz --profile redis-support
+aws s3 cp /Downloads/customer_support.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-MOD-12345/customer_support.tar.gz --profile gt-logs
 ```
 
-### Example 2: Redis Enterprise Bug (RED Jira)
+### Example 3: Redis Enterprise Bug (RED Jira)
 
 ```bash
 ./gtlogs-generator.py 147823 RED-172041 -f ./support_pkg_cluster_1.tar.gz
@@ -121,10 +187,10 @@ aws s3 cp /Downloads/customer_support.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-MO
 
 Generates:
 ```bash
-aws s3 cp ./support_pkg_cluster_1.tar.gz s3://gt-logs/exa-to-gt/ZD-147823-RED-172041/support_pkg_cluster_1.tar.gz
+aws s3 cp ./support_pkg_cluster_1.tar.gz s3://gt-logs/exa-to-gt/ZD-147823-RED-172041/support_pkg_cluster_1.tar.gz --profile gt-logs
 ```
 
-### Example 3: Flexible ID Formats
+### Example 4: Flexible ID Formats
 
 The tool accepts various input formats:
 
@@ -143,7 +209,15 @@ All produce the same output: `s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/`
 
 ## Command Reference
 
-### Positional Arguments
+### Running Modes
+
+| Mode | Command | Description |
+|------|---------|-------------|
+| **Interactive** | `./gtlogs-generator.py` | Guided prompts (recommended for first-time users) |
+| **Command-line** | `./gtlogs-generator.py <zd> <jira>` | Quick generation with arguments |
+| **Force Interactive** | `./gtlogs-generator.py -i` | Explicitly run interactive mode |
+
+### Positional Arguments (Command-line Mode)
 
 - `zendesk_id` - Zendesk ticket ID (e.g., `145980` or `ZD-145980`)
 - `jira_id` - Jira ticket ID (e.g., `RED-172041` or `MOD-12345`)
@@ -152,9 +226,10 @@ All produce the same output: `s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/`
 
 | Flag | Description | Example |
 |------|-------------|---------|
+| `-i`, `--interactive` | Run in interactive mode | `-i` |
 | `-f`, `--file` | Path to support package file | `-f /path/to/package.tar.gz` |
 | `-p`, `--profile` | AWS profile to use (overrides default) | `-p my-aws-profile` |
-| `--set-profile` | Set default AWS profile | `--set-profile redis-support` |
+| `--set-profile` | Set default AWS profile | `--set-profile gt-logs` |
 | `--show-config` | Show current configuration | `--show-config` |
 | `-h`, `--help` | Show help message | `-h` |
 
@@ -185,19 +260,36 @@ The tool stores configuration in `~/.gtlogs-config.ini`:
   - `RED172041` (auto-adds hyphen)
 - **Output format:** `RED-172041` or `MOD-12345`
 
-## Workflow Example
+## Workflow Examples
 
-Here's a typical workflow for uploading a support package:
+### Workflow 1: Interactive Mode (Easiest)
+
+```bash
+# 1. Run the interactive tool
+./gtlogs-generator.py
+
+# 2. Follow the prompts:
+#    - Enter Zendesk ID: 145980
+#    - Enter Jira ID: RED-172041
+#    - Enter file path: ~/Downloads/support_package.tar.gz
+#    - Press Enter to use default AWS profile (gt-logs)
+
+# 3. Copy and run the generated AWS CLI command
+
+# 4. Share the S3 path in the Jira ticket
+```
+
+### Workflow 2: Command-Line Mode
 
 ```bash
 # 1. Set your default AWS profile (one-time setup)
-./gtlogs-generator.py --set-profile redis-support
+./gtlogs-generator.py --set-profile gt-logs
 
 # 2. Generate the command with your specific ticket details
 ./gtlogs-generator.py 145980 RED-172041 -f ~/Downloads/support_package.tar.gz
 
 # 3. Copy the generated AWS CLI command and run it
-# aws s3 cp ~/Downloads/support_package.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/support_package.tar.gz --profile redis-support
+# aws s3 cp ~/Downloads/support_package.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/support_package.tar.gz --profile gt-logs
 
 # 4. Share the S3 path in the Jira ticket
 # s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/
