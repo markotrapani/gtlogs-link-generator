@@ -149,8 +149,12 @@ def check_exit_input(user_input):
     """Check if user wants to exit (ESC key or exit commands)."""
     if not user_input:
         return False
-    # Check for ESC character (ASCII 27) or escape sequences
-    if '\x1b' in user_input or user_input.lower() in ['exit', 'quit', 'q']:
+    # Check for various ESC representations and exit commands
+    # ESC can appear as: \x1b (actual ESC), ^[ (terminal display), or escape sequences
+    if ('\x1b' in user_input or
+        user_input == '^[' or
+        user_input.startswith('\x1b[') or  # Arrow keys and other escape sequences
+        user_input.lower() in ['exit', 'quit', 'q']):
         print("\n👋 Exiting...\n")
         sys.exit(0)
     return False
