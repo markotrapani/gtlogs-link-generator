@@ -4,11 +4,24 @@ A command-line tool for generating S3 bucket URLs and AWS CLI commands for Redis
 
 ## Purpose
 
-When Redis Support needs to share customer support packages with Engineering (via Jira tickets), files are uploaded to the `gt-logs` S3 bucket with a specific naming convention that links the Zendesk ticket to the Jira issue.
+Redis Support engineers upload customer support packages to the `gt-logs` S3 bucket for storage and sharing. This tool automates the generation of properly formatted S3 paths and AWS CLI upload commands.
+
+**Two upload scenarios supported:**
+
+1. **With Jira (Engineering escalation)**
+   When sharing support packages with Engineering via Jira tickets:
+   - S3 path: `s3://gt-logs/exa-to-gt/ZD-<ticket>-<jira>/`
+   - Links Zendesk ticket to Jira issue
+
+2. **Without Jira (ZD-only)**
+   For Redis Cloud environments without Engineering involvement:
+   - S3 path: `s3://gt-logs/zendesk-tickets/ZD-<ticket>/`
+   - Stores support packages for internal use
 
 This tool automates the generation of:
-- S3 bucket paths in the format: `s3://gt-logs/exa-to-gt/ZD-<ticket>-<jira>/`
+- Properly formatted S3 bucket paths for both scenarios
 - Complete AWS CLI commands for uploading support packages
+- Validation of all inputs (Zendesk IDs, Jira IDs, file paths)
 
 ## Installation
 
@@ -164,7 +177,25 @@ AWS CLI Command:
 
 ## Usage Examples
 
-### Example 1: Interactive Mode (Easiest)
+### Example 1: ZD-Only Upload (No Jira)
+
+For Redis Cloud environments without Engineering escalation:
+
+```bash
+./gtlogs-generator.py 145980 -f /path/to/support_package.tar.gz
+```
+
+Generates:
+```bash
+aws s3 cp /path/to/support_package.tar.gz s3://gt-logs/zendesk-tickets/ZD-145980/support_package.tar.gz --profile gt-logs
+```
+
+**Use when:**
+- Support package doesn't require Engineering review
+- Internal Redis Cloud troubleshooting
+- No Jira ticket associated with the issue
+
+### Example 2: Interactive Mode (Easiest)
 
 Just run without arguments and follow the prompts:
 
@@ -175,11 +206,12 @@ Just run without arguments and follow the prompts:
 Features:
 - ✅ Validates input in real-time
 - ✅ Shows formatted IDs as you type
+- ✅ Optional Jira ID (press Enter to skip for ZD-only)
 - ✅ Optional file path entry (press Enter to skip)
 - ✅ Uses default AWS profile automatically
 - ✅ Can save new default profiles on the fly
 
-### Example 2: Module Bug (MOD Jira)
+### Example 3: Module Bug (MOD Jira)
 
 ```bash
 ./gtlogs-generator.py 145980 MOD-12345 -f /Downloads/customer_support.tar.gz
@@ -190,7 +222,7 @@ Generates:
 aws s3 cp /Downloads/customer_support.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-MOD-12345/customer_support.tar.gz --profile gt-logs
 ```
 
-### Example 3: Redis Enterprise Bug (RED Jira)
+### Example 4: Redis Enterprise Bug (RED Jira)
 
 ```bash
 ./gtlogs-generator.py 147823 RED-172041 -f ./support_pkg_cluster_1.tar.gz
@@ -201,22 +233,24 @@ Generates:
 aws s3 cp ./support_pkg_cluster_1.tar.gz s3://gt-logs/exa-to-gt/ZD-147823-RED-172041/support_pkg_cluster_1.tar.gz --profile gt-logs
 ```
 
-### Example 4: Flexible ID Formats
+### Example 5: Flexible ID Formats
 
 The tool accepts various input formats:
 
 ```bash
-# Just numbers
-./gtlogs-generator.py 145980 RED-172041
+# ZD-only (no Jira)
+./gtlogs-generator.py 145980                    # → s3://gt-logs/zendesk-tickets/ZD-145980/
+./gtlogs-generator.py ZD-145980                 # → s3://gt-logs/zendesk-tickets/ZD-145980/
+
+# ZD + Jira - Just numbers
+./gtlogs-generator.py 145980 RED-172041         # → s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/
 
 # With ZD prefix
-./gtlogs-generator.py ZD-145980 RED-172041
+./gtlogs-generator.py ZD-145980 RED-172041      # → s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/
 
 # Jira without hyphen (auto-formats)
-./gtlogs-generator.py 145980 RED172041
+./gtlogs-generator.py 145980 RED172041          # → s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/
 ```
-
-All produce the same output: `s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/<support_package_name>`
 
 ## All Usage Options
 
@@ -235,15 +269,17 @@ All produce the same output: `s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/<suppo
 ./gtlogs-generator.py                    # Launch interactive mode
 ./gtlogs-generator.py -i                 # Force interactive mode
 
-# 2. BASIC GENERATION (templated output)
-./gtlogs-generator.py 145980 RED-172041  # Generate with ZD & Jira only
+# 2. ZD-ONLY (no Jira - for Redis Cloud without Engineering)
+./gtlogs-generator.py 145980                                    # Templated output
+./gtlogs-generator.py 145980 -f /path/to/package.tar.gz        # With file path
 
-# 3. WITH FILE PATH (complete command)
-./gtlogs-generator.py 145980 RED-172041 -f /path/to/package.tar.gz
+# 3. ZD + JIRA (Engineering escalation)
+./gtlogs-generator.py 145980 RED-172041                         # Templated output
+./gtlogs-generator.py 145980 RED-172041 -f /path/to/package.tar.gz  # With file path
 
 # 4. WITH CUSTOM AWS PROFILE (overrides default)
-./gtlogs-generator.py 145980 RED-172041 -p my-profile
-./gtlogs-generator.py 145980 RED-172041 -f /path/to/file.tar.gz -p my-profile
+./gtlogs-generator.py 145980 -p my-profile                      # ZD-only
+./gtlogs-generator.py 145980 RED-172041 -p my-profile          # ZD + Jira
 
 # 5. CONFIGURATION MANAGEMENT
 ./gtlogs-generator.py --set-profile gt-logs    # Set default AWS profile
@@ -504,8 +540,9 @@ aws s3 cp /path/to/support_package.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-RED-1
 
 ## S3 Bucket Structure
 
-Files are organized in the `gt-logs` bucket as:
+Files are organized in the `gt-logs` bucket with two different path structures:
 
+### With Jira (Engineering Escalation)
 ```
 s3://gt-logs/
 └── exa-to-gt/
@@ -515,6 +552,18 @@ s3://gt-logs/
     │   └── customer_logs.tar.gz
     └── ZD-148901-RED-173052/
         └── cluster_data.tar.gz
+```
+
+### Without Jira (ZD-Only)
+```
+s3://gt-logs/
+└── zendesk-tickets/
+    ├── ZD-145980/
+    │   └── debuginfo.tar.gz
+    ├── ZD-147823/
+    │   └── support_package.tar.gz
+    └── ZD-148901/
+        └── cluster_logs.tar.gz
 ```
 
 ## Development
