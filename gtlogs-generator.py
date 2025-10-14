@@ -84,7 +84,7 @@ class GTLogsGenerator:
     def generate_aws_command(self, zd_id, jira_id, support_package_path=None,
                            aws_profile=None):
         """Generate the full AWS CLI command."""
-        s3_path = self.generate_s3_path(zd_id, jira_id)
+        s3_base_path = self.generate_s3_path(zd_id, jira_id)
 
         # Determine AWS profile
         if aws_profile is None:
@@ -97,17 +97,18 @@ class GTLogsGenerator:
                 print(f"⚠️  Warning: File does not exist: {support_package_path}")
 
             package_name = package_path.name
-            s3_full_path = f"{s3_path}{package_name}"
+            s3_full_path = f"{s3_base_path}{package_name}"
 
             cmd = f"aws s3 cp {support_package_path} {s3_full_path}"
         else:
-            cmd = f"aws s3 cp <support_package_path> {s3_path}<support_package_name>"
+            s3_full_path = f"{s3_base_path}<support_package_name>"
+            cmd = f"aws s3 cp <support_package_path> {s3_full_path}"
 
         # Add profile if specified
         if aws_profile:
             cmd += f" --profile {aws_profile}"
 
-        return cmd, s3_path
+        return cmd, s3_full_path
 
 
 def interactive_mode():
