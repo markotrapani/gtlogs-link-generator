@@ -11,7 +11,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 # For immediate keypress detection (ESC without Enter)
 if TYPE_CHECKING:
@@ -167,8 +167,10 @@ class GTLogsGenerator:
             # Validate file path - will raise ValueError if file doesn't exist
             validated_path = self.validate_file_path(support_package_path)
 
-            # Assert for type checker - validate_file_path returns str when input is truthy
+            # Type narrowing: validate_file_path returns str when input is non-empty
+            # Use cast to tell type checker the value is definitely str here
             assert validated_path is not None, "validate_file_path should not return None for non-empty input"
+            validated_path = cast(str, validated_path)
 
             package_path = Path(validated_path)
             package_name = package_path.name
