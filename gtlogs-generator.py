@@ -11,6 +11,14 @@ import re
 import sys
 from pathlib import Path
 
+# For immediate keypress detection (ESC without Enter)
+try:
+    import termios
+    import tty
+    IMMEDIATE_INPUT_AVAILABLE = True
+except ImportError:
+    IMMEDIATE_INPUT_AVAILABLE = False
+
 
 class GTLogsGenerator:
     """Generates GT Logs S3 URLs and AWS CLI commands."""
@@ -145,16 +153,88 @@ class GTLogsGenerator:
         return cmd, s3_full_path
 
 
+def getch():
+    """Read a single character from stdin without waiting for Enter."""
+    if not IMMEDIATE_INPUT_AVAILABLE:
+        return None
+
+    try:
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            ch = sys.stdin.read(1)
+            return ch
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    except (OSError, termios.error):
+        # Fall back if terminal operations not supported
+        return None
+
+
+def input_with_esc_detection(prompt):
+    """Enhanced input that detects ESC key immediately without requiring Enter."""
+    # Check if we're in an interactive terminal
+    try:
+        if not IMMEDIATE_INPUT_AVAILABLE or not sys.stdin.isatty():
+            # Fallback to regular input if termios not available or not interactive
+            return input(prompt)
+    except:
+        return input(prompt)
+
+    print(prompt, end='', flush=True)
+    user_input = []
+
+    while True:
+        ch = getch()
+
+        # If getch fails, fall back to regular input
+        if ch is None:
+            result = input()
+            if result.lower() in ['exit', 'quit', 'q']:
+                print("\n👋 Exiting...\n")
+                sys.exit(0)
+            return result
+
+        # ESC key pressed
+        if ch == '\x1b':
+            print("\n👋 Exiting...\n")
+            sys.exit(0)
+
+        # Backspace
+        elif ch in ('\x7f', '\x08'):
+            if user_input:
+                user_input.pop()
+                # Erase character from terminal
+                print('\b \b', end='', flush=True)
+
+        # Enter key
+        elif ch in ('\r', '\n'):
+            print()
+            result = ''.join(user_input)
+            # Check for exit commands
+            if result.lower() in ['exit', 'quit', 'q']:
+                print("\n👋 Exiting...\n")
+                sys.exit(0)
+            return result
+
+        # Ctrl+C
+        elif ch == '\x03':
+            print()
+            raise KeyboardInterrupt
+
+        # Regular printable characters
+        elif ch.isprintable():
+            user_input.append(ch)
+            print(ch, end='', flush=True)
+
+
 def check_exit_input(user_input):
-    """Check if user wants to exit (ESC key or exit commands)."""
+    """Check if user wants to exit (exit commands only - ESC handled in input_with_esc_detection)."""
     if not user_input:
         return False
-    # Check for various ESC representations and exit commands
-    # ESC can appear as: \x1b (actual ESC), ^[ (terminal display), or escape sequences
-    if ('\x1b' in user_input or
-        user_input == '^[' or
-        user_input.startswith('\x1b[') or  # Arrow keys and other escape sequences
-        user_input.lower() in ['exit', 'quit', 'q']):
+    # Check for exit commands (ESC is now handled immediately in input function)
+    if user_input.lower() in ['exit', 'quit', 'q']:
         print("\n👋 Exiting...\n")
         sys.exit(0)
     return False
@@ -168,12 +248,15 @@ def interactive_mode():
     print("GT Logs Link Generator - Interactive Mode")
     print("="*70)
     print("\nGenerate S3 URLs and AWS CLI commands for Redis Support packages")
-    print("Press Ctrl+C or ESC to exit, or type 'exit' or 'q' at any prompt\n")
+    if IMMEDIATE_INPUT_AVAILABLE:
+        print("Press ESC to exit immediately, or Ctrl+C, or type 'exit'/'q' at any prompt\n")
+    else:
+        print("Press Ctrl+C to exit, or type 'exit' or 'q' at any prompt\n")
 
     try:
         # Get Zendesk ID
         while True:
-            zd_input = input("Enter Zendesk ticket ID (e.g., 145980): ").strip()
+            zd_input = input_with_esc_detection("Enter Zendesk ticket ID (e.g., 145980): ").strip()
             check_exit_input(zd_input)
             if not zd_input:
                 print("❌ Zendesk ID is required\n")
@@ -187,7 +270,7 @@ def interactive_mode():
 
         # Get Jira ID
         while True:
-            jira_input = input("Enter Jira ID (e.g., RED-172041 or MOD-12345): ").strip()
+            jira_input = input_with_esc_detection("Enter Jira ID (e.g., RED-172041 or MOD-12345): ").strip()
             check_exit_input(jira_input)
             if not jira_input:
                 print("❌ Jira ID is required\n")
@@ -201,7 +284,7 @@ def interactive_mode():
 
         # Get support package path (optional)
         while True:
-            package_path = input("Enter support package path (optional, press Enter to skip): ").strip()
+            package_path = input_with_esc_detection("Enter support package path (optional, press Enter to skip): ").strip()
             check_exit_input(package_path)
             if not package_path:
                 package_path = None
@@ -214,7 +297,7 @@ def interactive_mode():
                 break
             except ValueError as e:
                 print(f"❌ {e}")
-                retry = input("Try again? (y/n): ").strip().lower()
+                retry = input_with_esc_detection("Try again? (y/n): ").strip().lower()
                 check_exit_input(retry)
                 if retry not in ['y', 'yes']:
                     package_path = None
@@ -229,13 +312,13 @@ def interactive_mode():
         else:
             profile_prompt = "Enter AWS profile (optional, press Enter to skip): "
 
-        aws_profile_input = input(profile_prompt).strip()
+        aws_profile_input = input_with_esc_detection(profile_prompt).strip()
         check_exit_input(aws_profile_input)
 
         if aws_profile_input:
             aws_profile = aws_profile_input
             # Ask if they want to save as default
-            save_default = input(f"\nSave '{aws_profile}' as default profile? (y/n): ").strip().lower()
+            save_default = input_with_esc_detection(f"\nSave '{aws_profile}' as default profile? (y/n): ").strip().lower()
             check_exit_input(save_default)
             if save_default in ['y', 'yes']:
                 generator._save_config(aws_profile)
