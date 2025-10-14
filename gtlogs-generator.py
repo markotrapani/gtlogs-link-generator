@@ -352,8 +352,10 @@ def input_with_esc_detection(prompt):
                         continue
                 else:
                     # Timeout - no more characters, this is a standalone ESC key press
+                    # Restore terminal settings BEFORE exiting
+                    termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
                     # Use ANSI escape to clear line from cursor to end, then print exit message
-                    print("\r\033[K👋 Exiting...\n\n")
+                    print("\r\033[K👋 Exiting...\n")
                     sys.exit(0)
 
             # Backspace
@@ -422,7 +424,7 @@ def interactive_mode():
                 continue
             try:
                 zd_formatted = generator.validate_zendesk_id(zd_input)
-                print(f"✓ Using: {zd_formatted}\n")
+                print(f"\n✓ Using: {zd_formatted}\n")
                 break
             except ValueError as e:
                 print(f"❌ {e}\n")
@@ -437,7 +439,7 @@ def interactive_mode():
                 break
             try:
                 jira_formatted = generator.validate_jira_id(jira_input)
-                print(f"✓ Using: {jira_formatted}\n")
+                print(f"\n✓ Using: {jira_formatted}\n")
                 break
             except ValueError as e:
                 print(f"❌ {e}\n")
@@ -452,7 +454,7 @@ def interactive_mode():
                 break
             try:
                 validated_path = generator.validate_file_path(package_path)
-                print(f"✓ File found: {validated_path}\n")
+                print(f"\n✓ File found: {validated_path}\n")
                 package_path = validated_path
                 break
             except ValueError as e:
@@ -485,7 +487,7 @@ def interactive_mode():
                 print()
         elif default_profile:
             aws_profile = default_profile
-            print(f"✓ Using default profile: {default_profile}\n")
+            print(f"\n✓ Using default profile: {default_profile}\n")
         else:
             aws_profile = None
             print("✓ No AWS profile specified\n")
