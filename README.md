@@ -373,18 +373,21 @@ In interactive mode, the tool validates inputs in real-time and allows you to re
 ### Workflow 1: Interactive Mode (Easiest)
 
 ```bash
-# 1. Run the interactive tool
+# 1. Authenticate with AWS SSO (if not already authenticated)
+aws sso login --profile gt-logs
+
+# 2. Run the interactive tool
 ./gtlogs-generator.py
 
-# 2. Follow the prompts:
+# 3. Follow the prompts:
 #    - Enter Zendesk ID: 145980
 #    - Enter Jira ID: RED-172041
 #    - Enter file path: ~/Downloads/support_package.tar.gz
 #    - Press Enter to use default AWS profile (gt-logs)
 
-# 3. Copy and run the generated AWS CLI command
+# 4. Copy and run the generated AWS CLI command
 
-# 4. Share the S3 path in the Jira ticket
+# 5. Share the S3 path in the Jira ticket
 ```
 
 ### Workflow 2: Command-Line Mode
@@ -393,13 +396,16 @@ In interactive mode, the tool validates inputs in real-time and allows you to re
 # 1. Set your default AWS profile (one-time setup)
 ./gtlogs-generator.py --set-profile gt-logs
 
-# 2. Generate the command with your specific ticket details
+# 2. Authenticate with AWS SSO (if not already authenticated)
+aws sso login --profile gt-logs
+
+# 3. Generate the command with your specific ticket details
 ./gtlogs-generator.py 145980 RED-172041 -f ~/Downloads/support_package.tar.gz
 
-# 3. Copy the generated AWS CLI command and run it
+# 4. Copy the generated AWS CLI command and run it
 # aws s3 cp ~/Downloads/support_package.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/support_package.tar.gz --profile gt-logs
 
-# 4. Share the S3 path in the Jira ticket
+# 5. Share the S3 path in the Jira ticket
 # s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/
 ```
 
@@ -457,6 +463,33 @@ Try again? (y/n): n
 - Python 3.6 or higher
 - No external dependencies (uses Python standard library only)
 - AWS CLI (for executing the generated commands)
+- AWS SSO access configured for the `gt-logs` bucket
+
+### AWS Authentication
+
+**IMPORTANT:** Before running the generated `aws s3 cp` commands, you must authenticate with AWS SSO:
+
+```bash
+# Authenticate with your AWS profile
+aws sso login --profile <aws_profile>
+
+# Example with default profile
+aws sso login --profile gt-logs
+```
+
+**Complete workflow:**
+```bash
+# 1. Authenticate with AWS SSO
+aws sso login --profile gt-logs
+
+# 2. Generate the upload command
+gtlogs 145980 RED-172041 -f /path/to/support_package.tar.gz
+
+# 3. Copy and run the generated command
+aws s3 cp /path/to/support_package.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/support_package.tar.gz --profile gt-logs
+```
+
+**Note:** AWS SSO sessions expire after a period of time. If you get authentication errors, run `aws sso login` again.
 
 ## S3 Bucket Structure
 
@@ -522,9 +555,28 @@ which python3
 
 ### AWS CLI command fails
 
+**Authentication Errors:**
+```bash
+# Error: The SSO session associated with this profile has expired or is otherwise invalid
+# Solution: Re-authenticate with AWS SSO
+aws sso login --profile gt-logs
+```
+
+**Permission Errors:**
+```bash
+# Error: Access Denied or 403 Forbidden
+# Solutions:
+# 1. Verify you have permissions to write to the gt-logs bucket
+# 2. Check you're using the correct AWS profile
+# 3. Ensure your SSO session is still valid
+aws sso login --profile gt-logs
+```
+
+**General Troubleshooting:**
 - Verify AWS CLI is installed: `aws --version`
 - Check AWS profile configuration: `aws configure list --profile <profile-name>`
-- Ensure you have permissions to write to the `gt-logs` bucket
+- Test AWS access: `aws sts get-caller-identity --profile gt-logs`
+- Verify SSO session: `aws sso login --profile gt-logs`
 
 ## Contributing
 
