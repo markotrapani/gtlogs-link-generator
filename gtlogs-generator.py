@@ -8,6 +8,7 @@ import argparse
 import configparser
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -160,6 +161,81 @@ class GTLogsGenerator:
             cmd += f" --profile {aws_profile}"
 
         return cmd, s3_full_path
+
+    @staticmethod
+    def check_aws_authentication(aws_profile):
+        """Check if AWS profile is authenticated.
+
+        Returns:
+            True if authenticated, False otherwise
+        """
+        try:
+            cmd = ['aws', 'sts', 'get-caller-identity']
+            if aws_profile:
+                cmd.extend(['--profile', aws_profile])
+
+            result = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=10
+            )
+            return result.returncode == 0
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            return False
+
+    @staticmethod
+    def aws_sso_login(aws_profile):
+        """Execute AWS SSO login for the specified profile.
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            print(f"\n🔐 Authenticating with AWS SSO (profile: {aws_profile})...")
+            cmd = ['aws', 'sso', 'login', '--profile', aws_profile]
+
+            result = subprocess.run(cmd, check=False)
+
+            if result.returncode == 0:
+                print("✓ AWS SSO authentication successful\n")
+                return True
+            else:
+                print("❌ AWS SSO authentication failed\n")
+                return False
+        except FileNotFoundError:
+            print("❌ AWS CLI not found. Please install AWS CLI first.\n")
+            return False
+        except Exception as e:
+            print(f"❌ Error during AWS SSO login: {e}\n")
+            return False
+
+    @staticmethod
+    def execute_s3_upload(aws_command):
+        """Execute the AWS S3 cp command.
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            print(f"📤 Uploading to S3...")
+            print(f"   Running: {aws_command}\n")
+
+            result = subprocess.run(
+                aws_command,
+                shell=True,
+                check=False
+            )
+
+            if result.returncode == 0:
+                print("\n✅ Upload successful!\n")
+                return True
+            else:
+                print(f"\n❌ Upload failed with exit code {result.returncode}\n")
+                return False
+        except Exception as e:
+            print(f"❌ Error during upload: {e}\n")
+            return False
 
 
 def getch():
@@ -356,13 +432,45 @@ def interactive_mode():
         print(f"\nAWS CLI Command:\n  {cmd}")
         print("\n" + "="*70)
 
-        # Show AWS SSO login reminder if profile is specified
-        if aws_profile:
-            print(f"\n💡 Reminder: Authenticate with AWS SSO before running the command:")
-            print(f"   aws sso login --profile {aws_profile}\n")
+        # If we have a real file path (not templated), offer to execute
+        if package_path:
+            print()
+            execute_now = input_with_esc_detection("Execute this command now? (y/n): ").strip().lower()
+            check_exit_input(execute_now)
+
+            if execute_now in ['y', 'yes']:
+                # Determine which profile to use
+                profile_to_use = aws_profile
+
+                # Check authentication
+                if profile_to_use:
+                    is_authenticated = generator.check_aws_authentication(profile_to_use)
+
+                    if not is_authenticated:
+                        print(f"\n⚠️  AWS profile '{profile_to_use}' is not authenticated")
+                        # Automatically run AWS SSO login
+                        if not generator.aws_sso_login(profile_to_use):
+                            print("❌ Cannot proceed without authentication\n")
+                            return 1
+                    else:
+                        print(f"\n✓ AWS profile '{profile_to_use}' is already authenticated\n")
+
+                    # Execute the upload
+                    success = generator.execute_s3_upload(cmd)
+                    return 0 if success else 1
+                else:
+                    print("\n⚠️  No AWS profile specified. Please configure a profile first.\n")
+                    return 1
+            else:
+                print()
         else:
-            print(f"\n💡 Reminder: Authenticate with AWS SSO before running the command:")
-            print(f"   aws sso login --profile <your-aws-profile>\n")
+            # Show AWS SSO login reminder if profile is specified (templated command)
+            if aws_profile:
+                print(f"\n💡 Reminder: Authenticate with AWS SSO before running the command:")
+                print(f"   aws sso login --profile {aws_profile}\n")
+            else:
+                print(f"\n💡 Reminder: Authenticate with AWS SSO before running the command:")
+                print(f"   aws sso login --profile <your-aws-profile>\n")
 
         return 0
 
@@ -390,6 +498,9 @@ Examples:
   # Generate full AWS CLI command with file path
   %(prog)s 145980 RED-172041 -f /path/to/support_package.tar.gz
 
+  # Execute the upload automatically (checks auth and runs command)
+  %(prog)s 145980 RED-172041 -f /path/to/support_package.tar.gz --execute
+
   # Use specific AWS profile
   %(prog)s 145980 RED-172041 -f /path/to/support_package.tar.gz -p my-aws-profile
 
@@ -412,6 +523,8 @@ Examples:
                        help='Show current configuration')
     parser.add_argument('-i', '--interactive', action='store_true',
                        help='Run in interactive mode')
+    parser.add_argument('-e', '--execute', action='store_true',
+                       help='Execute the AWS S3 upload command (requires non-templated file path)')
 
     args = parser.parse_args()
 
@@ -466,7 +579,35 @@ Examples:
         elif default_profile and not args.aws_profile:
             print(f"ℹ️  Using default AWS profile: {default_profile}")
 
-        # Show AWS SSO login reminder
+        # Handle --execute flag (only if we have a real file path)
+        if args.execute:
+            if not args.support_package:
+                print("\n❌ Error: --execute requires a file path (-f/--file)\n")
+                return 1
+
+            if not used_profile:
+                print("\n❌ Error: --execute requires an AWS profile (use -p or --set-profile)\n")
+                return 1
+
+            print()
+
+            # Check authentication
+            is_authenticated = generator.check_aws_authentication(used_profile)
+
+            if not is_authenticated:
+                print(f"⚠️  AWS profile '{used_profile}' is not authenticated")
+                # Automatically run AWS SSO login
+                if not generator.aws_sso_login(used_profile):
+                    print("❌ Cannot proceed without authentication\n")
+                    return 1
+            else:
+                print(f"✓ AWS profile '{used_profile}' is already authenticated\n")
+
+            # Execute the upload
+            success = generator.execute_s3_upload(cmd)
+            return 0 if success else 1
+
+        # Show AWS SSO login reminder (when not executing)
         if used_profile:
             print(f"\n💡 Reminder: Authenticate with AWS SSO before running the command:")
             print(f"   aws sso login --profile {used_profile}")

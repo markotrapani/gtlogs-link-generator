@@ -20,10 +20,13 @@ Redis Support engineers upload customer support packages to the `gt-logs` S3 buc
    - **Primary use:** Redis Cloud issues escalated to Engineering
    - **Also supports:** Redis Software issues (though less common, as @exatogt automation with Files.com handles most Redis Software uploads automatically)
 
-This tool automates the generation of:
+**Key Features:**
+
+This tool automates:
 - Properly formatted S3 bucket paths for both scenarios
 - Complete AWS CLI commands for uploading support packages
 - Validation of all inputs (Zendesk IDs, Jira IDs, file paths)
+- **Automatic command execution** with AWS SSO authentication handling (optional)
 
 ## Installation
 
@@ -105,9 +108,18 @@ AWS CLI Command:
 
 ======================================================================
 
-💡 Reminder: Authenticate with AWS SSO before running the command:
-   aws sso login --profile gt-logs
+Execute this command now? (y/n): y
+
+🔐 Authenticating with AWS SSO (profile: gt-logs)...
+✓ AWS SSO authentication successful
+
+📤 Uploading to S3...
+   Running: aws s3 cp /path/to/debuginfo.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/debuginfo.tar.gz --profile gt-logs
+
+✅ Upload successful!
 ```
+
+**Note:** The tool automatically prompts to execute the command when a file path is provided. It will check AWS authentication and run `aws sso login` if needed.
 
 **ZD-Only Example (No Jira):**
 
@@ -167,6 +179,45 @@ AWS CLI Command:
 
 💡 Reminder: Authenticate with AWS SSO before running the command:
    aws sso login --profile <your-aws-profile>
+```
+
+### Command-Line Mode with Automatic Execution
+
+Use the `--execute` (or `-e`) flag to automatically upload the file with authentication handling:
+
+```bash
+./gtlogs-generator.py 145980 RED-172041 -f /path/to/support_package.tar.gz --execute
+```
+
+**What happens:**
+1. Generates the S3 path and AWS CLI command
+2. Checks if your AWS profile is authenticated
+3. If not authenticated, runs `aws sso login --profile <profile>` automatically
+4. Executes the `aws s3 cp` command
+5. Shows upload progress and success/failure status
+
+**Output:**
+```
+======================================================================
+GT Logs Link Generator
+======================================================================
+
+S3 Path:
+  s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/support_package.tar.gz
+
+AWS CLI Command:
+  aws s3 cp /path/to/support_package.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/support_package.tar.gz --profile gt-logs
+
+======================================================================
+
+ℹ️  Using default AWS profile: gt-logs
+
+✓ AWS profile 'gt-logs' is already authenticated
+
+📤 Uploading to S3...
+   Running: aws s3 cp /path/to/support_package.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/support_package.tar.gz --profile gt-logs
+
+✅ Upload successful!
 ```
 
 ### Generate Complete AWS CLI Command
@@ -330,11 +381,15 @@ aws s3 cp /path/to/rs_support_pkg.tar.gz s3://gt-logs/exa-to-gt/ZD-148901-RED-17
 ./gtlogs-generator.py 145980 -p my-profile                      # ZD-only
 ./gtlogs-generator.py 145980 RED-172041 -p my-profile          # ZD + Jira
 
-# 5. CONFIGURATION MANAGEMENT
+# 5. EXECUTE UPLOAD AUTOMATICALLY (with authentication handling)
+./gtlogs-generator.py 145980 -f /path/to/file.tar.gz --execute              # ZD-only
+./gtlogs-generator.py 145980 RED-172041 -f /path/to/file.tar.gz --execute  # ZD + Jira
+
+# 6. CONFIGURATION MANAGEMENT
 ./gtlogs-generator.py --set-profile gt-logs    # Set default AWS profile
 ./gtlogs-generator.py --show-config            # Show current config
 
-# 6. HELP
+# 7. HELP
 ./gtlogs-generator.py -h                       # Show help message
 ```
 
@@ -360,6 +415,7 @@ aws s3 cp /path/to/rs_support_pkg.tar.gz s3://gt-logs/exa-to-gt/ZD-148901-RED-17
 | `-i`, `--interactive` | Run in interactive mode | `-i` |
 | `-f`, `--file` | Path to support package file | `-f /path/to/package.tar.gz` |
 | `-p`, `--profile` | AWS profile to use (overrides default) | `-p my-aws-profile` |
+| `-e`, `--execute` | Execute S3 upload with automatic authentication | `--execute` |
 | `--set-profile` | Set default AWS profile | `--set-profile gt-logs` |
 | `--show-config` | Show current configuration | `--show-config` |
 | `-h`, `--help` | Show help message | `-h` |
@@ -466,27 +522,45 @@ In interactive mode, the tool validates inputs in real-time and allows you to re
 
 ## Workflow Examples
 
-### Workflow 1: Interactive Mode (Easiest)
+### Workflow 1: Interactive Mode (Easiest - with Automatic Upload)
 
 ```bash
-# 1. Authenticate with AWS SSO (if not already authenticated)
-aws sso login --profile gt-logs
-
-# 2. Run the interactive tool
+# 1. Run the interactive tool
 ./gtlogs-generator.py
 
-# 3. Follow the prompts:
+# 2. Follow the prompts:
 #    - Enter Zendesk ID: 145980
 #    - Enter Jira ID: RED-172041
 #    - Enter file path: ~/Downloads/support_package.tar.gz
 #    - Press Enter to use default AWS profile (gt-logs)
 
-# 4. Copy and run the generated AWS CLI command
+# 3. When prompted "Execute this command now? (y/n):", enter 'y'
+#    - Tool automatically checks authentication
+#    - Runs 'aws sso login' if needed
+#    - Uploads the file to S3
 
-# 5. Share the S3 path in the Jira ticket
+# 4. Share the S3 path in the Jira ticket
 ```
 
-### Workflow 2: Command-Line Mode
+### Workflow 2: Command-Line Mode with Automatic Upload
+
+```bash
+# 1. Set your default AWS profile (one-time setup)
+./gtlogs-generator.py --set-profile gt-logs
+
+# 2. Generate and execute the upload in one command
+./gtlogs-generator.py 145980 RED-172041 -f ~/Downloads/support_package.tar.gz --execute
+
+# 3. Tool automatically:
+#    - Checks authentication
+#    - Runs 'aws sso login' if needed
+#    - Uploads the file to S3
+
+# 4. Share the S3 path in the Jira ticket
+# s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/support_package.tar.gz
+```
+
+### Workflow 3: Command-Line Mode (Generate Only)
 
 ```bash
 # 1. Set your default AWS profile (one-time setup)
@@ -498,7 +572,7 @@ aws sso login --profile gt-logs
 # 3. Generate the command with your specific ticket details
 ./gtlogs-generator.py 145980 RED-172041 -f ~/Downloads/support_package.tar.gz
 
-# 4. Copy the generated AWS CLI command and run it
+# 4. Copy the generated AWS CLI command and run it manually
 # aws s3 cp ~/Downloads/support_package.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/support_package.tar.gz --profile gt-logs
 
 # 5. Share the S3 path in the Jira ticket
