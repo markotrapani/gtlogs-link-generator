@@ -301,25 +301,6 @@ aws s3 cp /path/to/rs_support_pkg.tar.gz s3://gt-logs/exa-to-gt/ZD-148901-RED-17
 
 ---
 
-### Flexible ID Formats
-
-The tool accepts various input formats:
-
-```bash
-# ZD-only (no Jira)
-./gtlogs-generator.py 145980                    # → s3://gt-logs/zendesk-tickets/ZD-145980/
-./gtlogs-generator.py ZD-145980                 # → s3://gt-logs/zendesk-tickets/ZD-145980/
-
-# ZD + Jira - Just numbers
-./gtlogs-generator.py 145980 RED-172041         # → s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/
-
-# With ZD prefix
-./gtlogs-generator.py ZD-145980 RED-172041      # → s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/
-
-# Jira without hyphen (auto-formats)
-./gtlogs-generator.py 145980 RED172041          # → s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/
-```
-
 ## All Usage Options
 
 ### Running Modes Summary
