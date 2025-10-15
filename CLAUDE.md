@@ -11,6 +11,7 @@ This is a command-line tool for generating S3 bucket URLs and AWS CLI commands f
 **Purpose:** Automate the generation of properly formatted S3 paths and AWS CLI upload commands for Redis Support packages
 
 **Main Features:**
+
 - Two upload scenarios: ZD-only (most common) and ZD+Jira (Engineering escalation)
 - Interactive mode with guided prompts and ESC key support
 - Command-line mode for quick generation
@@ -19,6 +20,7 @@ This is a command-line tool for generating S3 bucket URLs and AWS CLI commands f
 - Configuration persistence for default AWS profiles
 
 **Technology Stack:**
+
 - Python 3.6+ (standard library only - no external dependencies)
 - AWS CLI (for executing generated commands)
 - termios/tty (for enhanced keyboard input on Unix-like systems)
@@ -32,24 +34,28 @@ This is a command-line tool for generating S3 bucket URLs and AWS CLI commands f
 **ALL inputs MUST be strictly validated.** Do not bypass or weaken validation logic.
 
 #### Zendesk ID Validation
+
 - **Must be numerical only** (no letters, special chars except hyphen in prefix)
 - **Accepted formats:** `145980`, `ZD-145980`, `zd-145980`
 - **Output format:** `ZD-145980`
 - **Validation function:** `validate_zendesk_id()` in [gtlogs-generator.py:70-87](gtlogs-generator.py#L70-L87)
 
 #### Jira ID Validation
+
 - **Must be RED-# or MOD-# with numerical suffix only**
 - **Accepted formats:** `RED-172041`, `MOD-12345`, `RED172041` (auto-adds hyphen)
 - **Output format:** `RED-172041` or `MOD-12345`
 - **Validation function:** `validate_jira_id()` in [gtlogs-generator.py:90-108](gtlogs-generator.py#L90-L108)
 
 #### File Path Validation
+
 - **File must exist in filesystem**
 - **Path must point to a file, not a directory**
 - **Supports tilde expansion** (`~/Downloads/file.tar.gz`)
 - **Validation function:** `validate_file_path()` in [gtlogs-generator.py:111-139](gtlogs-generator.py#L111-L139)
 
 **WHY THIS MATTERS:**
+
 - Invalid IDs break S3 bucket organization
 - Invalid paths could cause upload failures or security issues
 - Support engineers rely on consistent, predictable paths
@@ -61,15 +67,19 @@ This is a command-line tool for generating S3 bucket URLs and AWS CLI commands f
 **Two distinct S3 path structures exist for specific reasons:**
 
 #### Without Jira (ZD-Only) - Most Common
-```
+
+```text
 s3://gt-logs/zendesk-tickets/ZD-{ticket}/
 ```
+
 **Use case:** Redis Cloud environments without Engineering involvement
 
 #### With Jira (ZD + Jira) - Engineering Escalation
-```
+
+```text
 s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 ```
+
 **Use case:** Sharing support packages with Engineering via Jira tickets
 
 **Path generation function:** `generate_s3_path()` in [gtlogs-generator.py:141-154](gtlogs-generator.py#L141-L154)
@@ -88,12 +98,14 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 4. **If authenticated**, proceed with upload
 
 **IMPORTANT:**
+
 - Never skip authentication checks
 - Always provide clear user feedback during SSO login
 - Handle timeouts and failures gracefully
 - Never store credentials or tokens
 
 **Execution points:**
+
 - Interactive mode: [gtlogs-generator.py:548-562](gtlogs-generator.py#L548-L562)
 - CLI mode with `--execute`: [gtlogs-generator.py:697-710](gtlogs-generator.py#L697-L710)
 
@@ -106,6 +118,7 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 **Key implementation:** `input_with_esc_detection()` in [gtlogs-generator.py:309-416](gtlogs-generator.py#L309-L416)
 
 **Features:**
+
 - **ESC key** - Immediate exit (standalone ESC only)
 - **Arrow keys** - Properly ignored (won't trigger exit)
 - **Backspace** - Character deletion
@@ -114,12 +127,14 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 - Exit commands: `exit`, `quit`, `q`
 
 **CRITICAL IMPLEMENTATION DETAILS:**
+
 - Uses `termios` and `tty` for raw terminal mode (Unix-like systems only)
 - **Timeout detection** distinguishes standalone ESC from escape sequences (arrow keys)
 - **Always restore terminal settings** in finally block
 - **Graceful fallback** to regular `input()` if `termios` unavailable (Windows, non-interactive)
 
 **WHY THIS MATTERS:**
+
 - Poor terminal handling can leave terminal in broken state
 - Arrow keys should NOT trigger exit (common user error)
 - Must work across different terminal emulators and SSH sessions
@@ -131,15 +146,18 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 **Default AWS profile** is stored in `~/.gtlogs-config.ini`
 
 **Configuration functions:**
+
 - `_load_config()` - [gtlogs-generator.py:45-50](gtlogs-generator.py#L45-L50)
 - `_save_config()` - [gtlogs-generator.py:52-60](gtlogs-generator.py#L52-L60)
 - `get_default_aws_profile()` - [gtlogs-generator.py:62-67](gtlogs-generator.py#L62-L67)
 
 **CLI commands:**
+
 - `--set-profile <profile>` - Save default profile
 - `--show-config` - Display current config
 
 **Best practices:**
+
 - Never overwrite config without user confirmation
 - Handle missing config files gracefully
 - Provide clear success messages when saving config
@@ -176,6 +194,7 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 **CAUTION:** Terminal input handling is complex and platform-specific
 
 **Before modifying `input_with_esc_detection()`:**
+
 1. Test on macOS, Linux, and if possible, Windows
 2. Test in different terminal emulators (Terminal.app, iTerm2, SSH sessions)
 3. Verify arrow keys don't trigger exit
@@ -189,6 +208,7 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 ### Manual Testing Checklist
 
 #### Input Validation Testing
+
 ```bash
 # Valid inputs
 ./gtlogs-generator.py 145980 RED-172041                    # Should succeed
@@ -203,6 +223,7 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 ```
 
 #### File Path Testing
+
 ```bash
 # Create test file
 echo "test" > /tmp/test-package.tar.gz
@@ -216,6 +237,7 @@ echo "test" > /tmp/test-package.tar.gz
 ```
 
 #### Interactive Mode Testing
+
 ```bash
 # Test keyboard controls
 ./gtlogs-generator.py
@@ -228,6 +250,7 @@ echo "test" > /tmp/test-package.tar.gz
 ```
 
 #### AWS Authentication Testing
+
 ```bash
 # Test with authenticated profile
 aws sso login --profile gt-logs
@@ -246,7 +269,7 @@ aws sso logout --profile gt-logs  # (if logout command exists)
 
 ### Code Organization
 
-```
+```text
 gtlogs-generator.py
 ├── GTLogsGenerator class (main logic)
 │   ├── validate_zendesk_id()     - Input validation
@@ -304,16 +327,19 @@ gtlogs-generator.py
 ### Current Limitations
 
 1. **Windows Support for ESC Detection**
+
    - `termios`/`tty` unavailable on Windows
    - Falls back to regular `input()` (no immediate ESC)
    - Exit via Ctrl+C or typing "exit" still works
 
 2. **AWS CLI Required**
+
    - Tool generates commands, but requires AWS CLI installed
    - No built-in S3 upload capability
    - Relies on user's AWS SSO configuration
 
 3. **Single File Upload Only**
+
    - No support for batch uploads
    - No support for directory uploads
    - Each file requires separate command
@@ -350,18 +376,22 @@ print(f"[DEBUG] Raw char: {repr(ch)}")
 ### Common Issues
 
 **Issue:** Arrow keys trigger exit
+
 - **Cause:** ESC sequence timeout too short
 - **Fix:** Increase `VTIME` in [gtlogs-generator.py:349](gtlogs-generator.py#L349)
 
 **Issue:** Terminal broken after script crash
+
 - **Cause:** Terminal settings not restored
 - **Fix:** Run `reset` command to restore terminal
 
 **Issue:** AWS authentication fails silently
+
 - **Cause:** Timeout too short or AWS CLI not in PATH
 - **Fix:** Check `timeout` in `check_aws_authentication()` ([gtlogs-generator.py:206](gtlogs-generator.py#L206))
 
 **Issue:** File validation fails on valid paths
+
 - **Cause:** Path expansion issue or permissions
 - **Fix:** Check `os.path.expanduser()` and `os.path.exists()` results
 
@@ -373,7 +403,7 @@ print(f"[DEBUG] Raw char: {repr(ch)}")
 
 Follow conventional commit format:
 
-```
+```text
 feat: Add support for ENG- Jira prefix
 fix: Handle spaces in file paths correctly
 docs: Update README with new --dry-run flag
@@ -386,6 +416,7 @@ test: Add validation tests for Jira IDs
 **Always ask user permission before creating commits** (per CLAUDE.md guidelines)
 
 **Pre-commit checklist:**
+
 - [ ] All input validation still enforced
 - [ ] Terminal input handling tested (ESC, arrow keys)
 - [ ] README.md updated if features/usage changed
@@ -397,9 +428,10 @@ test: Add validation tests for Jira IDs
 
 ## Contact & Support
 
-**Maintainer:** marko.trapani@redis.com
+**Maintainer:** <marko.trapani@redis.com>
 
 **For questions about:**
+
 - S3 bucket structure → Contact Redis Support Engineering
 - AWS SSO access → Contact Redis IT/Security
 - Feature requests → Contact maintainer
@@ -412,6 +444,7 @@ test: Add validation tests for Jira IDs
 **Current Status:** Stable production tool
 
 **Recent improvements:**
+
 - ESC key immediate exit support
 - Automatic AWS SSO authentication handling
 - ZD-only upload path support
@@ -419,6 +452,7 @@ test: Add validation tests for Jira IDs
 - Improved keyboard controls (arrow keys properly ignored)
 
 **See git history for detailed changes:**
+
 ```bash
 git log --oneline
 ```
@@ -429,5 +463,5 @@ git log --oneline
 
 - Main repository CLAUDE.md: [/CLAUDE.md](../CLAUDE.md)
 - Project README: [README.md](README.md)
-- AWS CLI Documentation: https://docs.aws.amazon.com/cli/
-- Python termios: https://docs.python.org/3/library/termios.html
+- AWS CLI Documentation: <https://docs.aws.amazon.com/cli/>
+- Python termios: <https://docs.python.org/3/library/termios.html>

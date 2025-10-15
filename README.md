@@ -23,6 +23,7 @@ Redis Support engineers upload customer support packages to the `gt-logs` S3 buc
 **Key Features:**
 
 This tool automates:
+
 - Properly formatted S3 bucket paths for both scenarios
 - Complete AWS CLI commands for uploading support packages
 - Validation of all inputs (Zendesk IDs, Jira IDs, file paths)
@@ -69,6 +70,7 @@ Run the script without arguments to enter interactive mode:
 ```
 
 **Keyboard Controls:**
+
 - **ESC** - Exit immediately (standalone ESC key only - arrow keys won't trigger exit)
 - **Ctrl+C** - Exit
 - **Backspace** - Delete characters
@@ -77,6 +79,7 @@ Run the script without arguments to enter interactive mode:
 - Type `exit`, `quit`, or `q` at any prompt - Exit
 
 The script will guide you through entering:
+
 1. Zendesk ticket ID (required)
 2. Jira ID (optional - press Enter to skip for ZD-only uploads)
 3. Support package path (optional)
@@ -85,7 +88,7 @@ The script will guide you through entering:
 
 **Example Interactive Session:**
 
-```
+```text
 ======================================================================
 GT Logs Link Generator - Interactive Mode
 ======================================================================
@@ -132,7 +135,7 @@ Execute this command now? (Y/n):
 
 **ZD-Only Example (No Jira):**
 
-```
+```text
 Enter Zendesk ticket ID (e.g., 145980): 145980
 ✓ Using: ZD-145980
 
@@ -170,7 +173,8 @@ For quick one-time usage or scripting:
 ```
 
 **Output:**
-```
+
+```text
 ======================================================================
 GT Logs Link Generator
 ======================================================================
@@ -199,6 +203,7 @@ Use the `--execute` (or `-e`) flag to automatically upload the file with authent
 ```
 
 **What happens:**
+
 1. Generates the S3 path and AWS CLI command
 2. Checks if your AWS profile is authenticated
 3. If not authenticated, runs `aws sso login --profile <profile>` automatically
@@ -206,7 +211,8 @@ Use the `--execute` (or `-e`) flag to automatically upload the file with authent
 5. Shows upload progress and success/failure status
 
 **Output:**
-```
+
+```text
 ======================================================================
 GT Logs Link Generator
 ======================================================================
@@ -236,7 +242,8 @@ AWS CLI Command:
 ```
 
 **Output:**
-```
+
+```text
 ======================================================================
 GT Logs Link Generator
 ======================================================================
@@ -275,11 +282,13 @@ AWS CLI Command:
 For Redis Cloud environments without Engineering escalation.
 
 **Command-line:**
+
 ```bash
 ./gtlogs-generator.py 145980 -f /path/to/support_package.tar.gz
 ```
 
 **Interactive mode:**
+
 ```bash
 ./gtlogs-generator.py
 # Enter ZD: 145980
@@ -288,11 +297,13 @@ For Redis Cloud environments without Engineering escalation.
 ```
 
 **Generates:**
+
 ```bash
 aws s3 cp /path/to/support_package.tar.gz s3://gt-logs/zendesk-tickets/ZD-145980/support_package.tar.gz --profile gt-logs
 ```
 
 **When to use:**
+
 - Support package doesn't require Engineering review
 - Internal Redis Cloud troubleshooting
 - No Jira ticket associated with the issue
@@ -304,6 +315,7 @@ aws s3 cp /path/to/support_package.tar.gz s3://gt-logs/zendesk-tickets/ZD-145980
 For Redis Cloud issues escalated to Engineering via RED or MOD Jira tickets.
 
 **Command-line:**
+
 ```bash
 # Redis Enterprise bug (RED)
 ./gtlogs-generator.py 147823 RED-172041 -f ./support_pkg_cluster_1.tar.gz
@@ -313,6 +325,7 @@ For Redis Cloud issues escalated to Engineering via RED or MOD Jira tickets.
 ```
 
 **Interactive mode:**
+
 ```bash
 ./gtlogs-generator.py
 # Enter ZD: 147823
@@ -321,11 +334,13 @@ For Redis Cloud issues escalated to Engineering via RED or MOD Jira tickets.
 ```
 
 **Generates:**
+
 ```bash
 aws s3 cp ./support_pkg_cluster_1.tar.gz s3://gt-logs/exa-to-gt/ZD-147823-RED-172041/support_pkg_cluster_1.tar.gz --profile gt-logs
 ```
 
 **When to use:**
+
 - Redis Cloud issues that require Engineering involvement
 - Sharing support packages via Jira (RED or MOD tickets)
 - **This tool is the primary/best method for this scenario**
@@ -337,11 +352,13 @@ aws s3 cp ./support_pkg_cluster_1.tar.gz s3://gt-logs/exa-to-gt/ZD-147823-RED-17
 For Redis Software (on-prem) issues escalated to Engineering.
 
 **Command-line:**
+
 ```bash
 ./gtlogs-generator.py 148901 RED-173052 -f /path/to/rs_support_pkg.tar.gz
 ```
 
 **Interactive mode:**
+
 ```bash
 ./gtlogs-generator.py
 # Enter ZD: 148901
@@ -350,11 +367,13 @@ For Redis Software (on-prem) issues escalated to Engineering.
 ```
 
 **Generates:**
+
 ```bash
 aws s3 cp /path/to/rs_support_pkg.tar.gz s3://gt-logs/exa-to-gt/ZD-148901-RED-173052/rs_support_pkg.tar.gz --profile gt-logs
 ```
 
 **When to use:**
+
 - Redis Software issues that require Engineering involvement
 - **Note:** Most Redis Software uploads are handled automatically via @exatogt automation with Files.com
 - Use this tool when the automation isn't available or applicable
@@ -453,6 +472,7 @@ The tool performs strict validation on all inputs to ensure data integrity:
 - 📤 **Output format:** `ZD-145980`
 
 **Examples:**
+
 ```bash
 # Valid
 ./gtlogs-generator.py 145980 RED-172041        ✓
@@ -471,10 +491,12 @@ The tool performs strict validation on all inputs to ensure data integrity:
 - 📤 **Output format:** `RED-172041` or `MOD-12345`
 
 **Supported prefixes:**
+
 - `RED-` for Redis Enterprise bugs
 - `MOD-` for Module bugs
 
 **Examples:**
+
 ```bash
 # Valid
 ./gtlogs-generator.py 145980 RED-172041        ✓
@@ -495,6 +517,7 @@ The tool performs strict validation on all inputs to ensure data integrity:
 - ❌ Rejects non-existent files and directories
 
 **Examples:**
+
 ```bash
 # Valid
 ./gtlogs-generator.py 145980 RED-172041 -f /path/to/existing/file.tar.gz     ✓
@@ -625,7 +648,7 @@ The tool performs strict validation and provides clear error messages. **All val
 
 In interactive mode, validation errors prompt you to retry:
 
-```
+```text
 Enter Zendesk ticket ID (e.g., 145980): 145980abc
 ❌ Invalid Zendesk ID: must be numerical only (e.g., 145980 or ZD-145980)
 
@@ -658,6 +681,7 @@ aws sso login --profile gt-logs
 ```
 
 **Complete workflow:**
+
 ```bash
 # 1. Authenticate with AWS SSO
 aws sso login --profile gt-logs
@@ -676,7 +700,8 @@ aws s3 cp /path/to/support_package.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-RED-1
 Files are organized in the `gt-logs` bucket with two different path structures:
 
 ### 1. Without Jira (ZD-Only) - Most Common
-```
+
+```text
 s3://gt-logs/
 └── zendesk-tickets/
     ├── ZD-145980/
@@ -688,7 +713,8 @@ s3://gt-logs/
 ```
 
 ### 2. With Jira (Engineering Escalation)
-```
+
+```text
 s3://gt-logs/
 └── exa-to-gt/
     ├── ZD-145980-RED-172041/
@@ -703,7 +729,7 @@ s3://gt-logs/
 
 ### Project Structure
 
-```
+```text
 gtlogs-link-generator/
 ├── .gitignore
 ├── README.md
@@ -737,11 +763,13 @@ chmod +x gtlogs-generator.py
 ### Python not found
 
 Ensure Python 3 is installed:
+
 ```bash
 python3 --version
 ```
 
 If using the shebang directly, verify Python 3 location:
+
 ```bash
 which python3
 ```
@@ -749,6 +777,7 @@ which python3
 ### AWS CLI command fails
 
 **Authentication Errors:**
+
 ```bash
 # Error: The SSO session associated with this profile has expired or is otherwise invalid
 # Solution: Re-authenticate with AWS SSO
@@ -756,6 +785,7 @@ aws sso login --profile gt-logs
 ```
 
 **Permission Errors:**
+
 ```bash
 # Error: Access Denied or 403 Forbidden
 # Solutions:
@@ -766,6 +796,7 @@ aws sso login --profile gt-logs
 ```
 
 **General Troubleshooting:**
+
 - Verify AWS CLI is installed: `aws --version`
 - Check AWS profile configuration: `aws configure list --profile <profile-name>`
 - Test AWS access: `aws sts get-caller-identity --profile gt-logs`
@@ -781,4 +812,4 @@ Internal Redis tool - not for public distribution.
 
 ## Support
 
-For questions or issues, contact: marko.trapani@redis.com
+For questions or issues, contact: <marko.trapani@redis.com>
