@@ -95,6 +95,7 @@ The tool remembers your previous inputs and allows you to quickly reuse them:
 - Each field (Zendesk ID, Jira ID, file path, AWS profile) has its own history
 - History is saved to `~/.gtlogs-history.json` (last 20 entries per field)
 - Only validated inputs are saved to history
+- **History is preserved regardless of how you exit** (ESC, Ctrl+C, exit commands, or normal completion)
 
 **Example Interactive Session:**
 
@@ -468,8 +469,10 @@ The tool stores configuration and history in your home directory:
 
 **History file (`~/.gtlogs-history.json`):**
 - Stores your last 20 inputs per field (Zendesk ID, Jira ID, file path, AWS profile)
-- Automatically saved after each interactive session
+- Automatically saved after each interactive session (regardless of exit method)
+- Saved even when exiting with ESC, Ctrl+C, or exit commands
 - Used for UP/DOWN arrow navigation in interactive mode
+- Only validated inputs are saved (invalid entries are never added)
 
 ```bash
 # View current configuration
