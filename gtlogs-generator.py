@@ -34,6 +34,11 @@ else:
         tty = _DummyModule()  # type: ignore
 
 
+class UserExitException(Exception):
+    """Raised when user explicitly exits via ESC or exit commands."""
+    pass
+
+
 class GTLogsGenerator:
     """Generates GT Logs S3 URLs and AWS CLI commands."""
 
@@ -480,8 +485,9 @@ def input_with_esc_detection(prompt: str, history_list: list = None) -> str:
                     # Restore terminal settings BEFORE exiting
                     termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
                     # Use ANSI escape to clear line from cursor to end, then print exit message
-                    print("\r\033[K👋 Exiting...\n")
-                    sys.exit(0)
+                    print("\r\033[K")
+                    # Raise exception instead of sys.exit() to allow cleanup in calling code
+                    raise UserExitException()
 
             # Backspace
             elif ch in ('\x7f', '\x08'):
@@ -498,8 +504,7 @@ def input_with_esc_detection(prompt: str, history_list: list = None) -> str:
                 result = ''.join(user_input)
                 # Check for exit commands
                 if result.lower() in ['exit', 'quit', 'q']:
-                    print("\n👋 Exiting...\n")
-                    sys.exit(0)
+                    raise UserExitException()
                 return result
 
             # Ctrl+C
@@ -520,13 +525,16 @@ def input_with_esc_detection(prompt: str, history_list: list = None) -> str:
 
 
 def check_exit_input(user_input):
-    """Check if user wants to exit (exit commands only - ESC handled in input_with_esc_detection)."""
+    """Check if user wants to exit (exit commands only - ESC handled in input_with_esc_detection).
+
+    Note: This function is now redundant as exit checking is done in input_with_esc_detection(),
+    but kept for backward compatibility.
+    """
     if not user_input:
         return False
-    # Check for exit commands (ESC is now handled immediately in input function)
+    # Check for exit commands (handled by UserExitException in input_with_esc_detection now)
     if user_input.lower() in ['exit', 'quit', 'q']:
-        print("\n👋 Exiting...\n")
-        sys.exit(0)
+        raise UserExitException()
     return False
 
 
@@ -695,6 +703,11 @@ def interactive_mode():
         generator._save_history()
         return 0
 
+    except UserExitException:
+        print("👋 Exiting...\n")
+        # Save history when user exits via ESC or exit command
+        generator._save_history()
+        return 0
     except KeyboardInterrupt:
         print("\n\n👋 Exiting...\n")
         # Save history even on Ctrl+C
