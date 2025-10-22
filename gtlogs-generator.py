@@ -6,6 +6,7 @@ Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 
 import argparse
 import configparser
+import json
 import os
 import re
 import subprocess
@@ -38,9 +39,12 @@ class GTLogsGenerator:
 
     BUCKET_BASE = "s3://gt-logs/exa-to-gt"
     CONFIG_FILE = os.path.expanduser("~/.gtlogs-config.ini")
+    HISTORY_FILE = os.path.expanduser("~/.gtlogs-history.json")
+    MAX_HISTORY_ENTRIES = 20
 
     def __init__(self):
         self.config = self._load_config()
+        self.history = self._load_history()
 
     def _load_config(self):
         """Load configuration from config file."""
@@ -65,6 +69,64 @@ class GTLogsGenerator:
             return self.config.get('default', 'aws_profile')
         except (configparser.NoSectionError, configparser.NoOptionError):
             return None
+
+    def _load_history(self):
+        """Load input history from history file."""
+        if os.path.exists(self.HISTORY_FILE):
+            try:
+                with open(self.HISTORY_FILE, 'r') as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, IOError):
+                # If file is corrupted, start fresh
+                pass
+
+        # Default empty history structure
+        return {
+            'zendesk_id': [],
+            'jira_id': [],
+            'file_path': [],
+            'aws_profile': []
+        }
+
+    def _save_history(self):
+        """Save input history to history file."""
+        try:
+            with open(self.HISTORY_FILE, 'w') as f:
+                json.dump(self.history, f, indent=2)
+        except IOError as e:
+            # Non-critical error, just warn
+            print(f"⚠️  Warning: Could not save history: {e}")
+
+    def add_to_history(self, field_name, value):
+        """Add a validated value to history for a specific field.
+
+        Args:
+            field_name: One of 'zendesk_id', 'jira_id', 'file_path', 'aws_profile'
+            value: The validated value to add
+        """
+        if not value or field_name not in self.history:
+            return
+
+        # Remove if already exists (to avoid duplicates)
+        if value in self.history[field_name]:
+            self.history[field_name].remove(value)
+
+        # Add to front of list (most recent first)
+        self.history[field_name].insert(0, value)
+
+        # Limit history size
+        self.history[field_name] = self.history[field_name][:self.MAX_HISTORY_ENTRIES]
+
+    def get_history(self, field_name):
+        """Get history list for a specific field.
+
+        Args:
+            field_name: One of 'zendesk_id', 'jira_id', 'file_path', 'aws_profile'
+
+        Returns:
+            List of historical values (most recent first)
+        """
+        return self.history.get(field_name, [])
 
     @staticmethod
     def validate_zendesk_id(zd_id):
@@ -306,8 +368,16 @@ def getch():
     return getch_timeout(timeout=None)
 
 
-def input_with_esc_detection(prompt: str) -> str:
-    """Enhanced input that detects ESC key immediately without requiring Enter."""
+def input_with_esc_detection(prompt: str, history_list: list = None) -> str:
+    """Enhanced input that detects ESC key immediately without requiring Enter.
+
+    Args:
+        prompt: The input prompt to display
+        history_list: Optional list of historical values for up/down arrow navigation
+
+    Returns:
+        User input string
+    """
     # Check if we're in an interactive terminal
     try:
         if not IMMEDIATE_INPUT_AVAILABLE or not sys.stdin.isatty():
@@ -318,10 +388,21 @@ def input_with_esc_detection(prompt: str) -> str:
 
     print(prompt, end='', flush=True)
     user_input = []
+    history_index = -1  # -1 means not navigating history, 0+ means index in history_list
 
     # Enter raw mode ONCE and stay in it for the entire input
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
+
+    def clear_line_from_prompt():
+        """Clear the current input line and reposition cursor after prompt."""
+        # Move cursor to start of line, clear line, reprint prompt
+        print('\r\033[K' + prompt, end='', flush=True)
+
+    def display_input():
+        """Display the current user_input."""
+        clear_line_from_prompt()
+        print(''.join(user_input), end='', flush=True)
 
     try:
         tty.setraw(fd)
@@ -370,7 +451,26 @@ def input_with_esc_detection(prompt: str) -> str:
 
                         # Restore raw mode
                         tty.setraw(fd)
-                        # Ignore the entire escape sequence
+
+                        # Handle arrow keys (if history is available)
+                        if history_list and final_ch in ('A', 'B'):
+                            if final_ch == 'A':  # Up arrow
+                                if history_index < len(history_list) - 1:
+                                    history_index += 1
+                                    user_input = list(history_list[history_index])
+                                    display_input()
+                            elif final_ch == 'B':  # Down arrow
+                                if history_index > 0:
+                                    history_index -= 1
+                                    user_input = list(history_list[history_index])
+                                    display_input()
+                                elif history_index == 0:
+                                    # Move past most recent to empty input
+                                    history_index = -1
+                                    user_input = []
+                                    display_input()
+
+                        # Ignore other escape sequences (left/right arrows, etc.)
                         continue
                     else:
                         # Unknown escape sequence, ignore it
@@ -387,6 +487,8 @@ def input_with_esc_detection(prompt: str) -> str:
             elif ch in ('\x7f', '\x08'):
                 if user_input:
                     user_input.pop()
+                    # Reset history navigation when user edits
+                    history_index = -1
                     # Erase character from terminal
                     print('\b \b', end='', flush=True)
 
@@ -407,6 +509,8 @@ def input_with_esc_detection(prompt: str) -> str:
 
             # Regular printable characters
             elif ch.isprintable():
+                # Reset history navigation when user types
+                history_index = -1
                 user_input.append(ch)
                 print(ch, end='', flush=True)
 
@@ -435,14 +539,16 @@ def interactive_mode():
     print("="*70)
     print("\nGenerate S3 URLs and AWS CLI commands for Redis Support packages")
     if IMMEDIATE_INPUT_AVAILABLE:
-        print("Press ESC to exit immediately, or Ctrl+C, or type 'exit'/'q' at any prompt\n")
+        print("Press ESC to exit immediately, Ctrl+C, or type 'exit'/'q' at any prompt")
+        print("Use UP/DOWN arrows to navigate through input history\n")
     else:
         print("Press Ctrl+C to exit, or type 'exit' or 'q' at any prompt\n")
 
     try:
         # Get Zendesk ID
         while True:
-            zd_input = input_with_esc_detection("Enter Zendesk ticket ID (e.g., 145980): ").strip()
+            zd_history = generator.get_history('zendesk_id')
+            zd_input = input_with_esc_detection("Enter Zendesk ticket ID (e.g., 145980): ", zd_history).strip()
             check_exit_input(zd_input)
             if not zd_input:
                 print("❌ Zendesk ID is required\n")
@@ -450,6 +556,8 @@ def interactive_mode():
             try:
                 zd_formatted = generator.validate_zendesk_id(zd_input)
                 print(f"\n✓ Using: {zd_formatted}\n")
+                # Add to history immediately after validation
+                generator.add_to_history('zendesk_id', zd_formatted)
                 break
             except ValueError as e:
                 print(f"❌ {e}\n")
@@ -457,7 +565,8 @@ def interactive_mode():
         # Get Jira ID (optional)
         jira_formatted = None
         while True:
-            jira_input = input_with_esc_detection("Enter Jira ID (e.g., RED-172041 or MOD-12345, press Enter to skip): ").strip()
+            jira_history = generator.get_history('jira_id')
+            jira_input = input_with_esc_detection("Enter Jira ID (e.g., RED-172041 or MOD-12345, press Enter to skip): ", jira_history).strip()
             check_exit_input(jira_input)
             if not jira_input:
                 print("\n✓ No Jira ID - will use zendesk-tickets path\n")
@@ -465,13 +574,16 @@ def interactive_mode():
             try:
                 jira_formatted = generator.validate_jira_id(jira_input)
                 print(f"\n✓ Using: {jira_formatted}\n")
+                # Add to history immediately after validation
+                generator.add_to_history('jira_id', jira_formatted)
                 break
             except ValueError as e:
                 print(f"❌ {e}\n")
 
         # Get support package path (optional)
         while True:
-            package_path = input_with_esc_detection("Enter support package path (optional, press Enter to skip): ").strip()
+            path_history = generator.get_history('file_path')
+            package_path = input_with_esc_detection("Enter support package path (optional, press Enter to skip): ", path_history).strip()
             check_exit_input(package_path)
             if not package_path:
                 package_path = None
@@ -480,6 +592,8 @@ def interactive_mode():
             try:
                 validated_path = generator.validate_file_path(package_path)
                 print(f"\n✓ File found: {validated_path}\n")
+                # Add to history immediately after validation
+                generator.add_to_history('file_path', validated_path)
                 package_path = validated_path
                 break
             except ValueError as e:
@@ -499,11 +613,14 @@ def interactive_mode():
         else:
             profile_prompt = "Enter AWS profile (optional, press Enter to skip): "
 
-        aws_profile_input = input_with_esc_detection(profile_prompt).strip()
+        profile_history = generator.get_history('aws_profile')
+        aws_profile_input = input_with_esc_detection(profile_prompt, profile_history).strip()
         check_exit_input(aws_profile_input)
 
         if aws_profile_input:
             aws_profile = aws_profile_input
+            # Add to history immediately
+            generator.add_to_history('aws_profile', aws_profile)
             # Ask if they want to save as default
             save_default = input_with_esc_detection(f"\nSave '{aws_profile}' as default profile? (y/n): ").strip().lower()
             check_exit_input(save_default)
@@ -574,13 +691,19 @@ def interactive_mode():
                 print(f"\n💡 Reminder: Authenticate with AWS SSO before running the command:")
                 print(f"   aws sso login --profile <your-aws-profile>\n")
 
+        # Save history before exiting
+        generator._save_history()
         return 0
 
     except KeyboardInterrupt:
         print("\n\n👋 Exiting...\n")
+        # Save history even on Ctrl+C
+        generator._save_history()
         return 0
     except Exception as e:
         print(f"\n❌ Error: {e}\n", file=sys.stderr)
+        # Save history even on error
+        generator._save_history()
         return 1
 
 

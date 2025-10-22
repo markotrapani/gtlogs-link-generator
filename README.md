@@ -73,9 +73,9 @@ Run the script without arguments to enter interactive mode:
 
 - **ESC** - Exit immediately (standalone ESC key only - arrow keys won't trigger exit)
 - **Ctrl+C** - Exit
+- **UP/DOWN arrows** - Navigate through input history from previous sessions
 - **Backspace** - Delete characters
 - **Enter** - Submit input
-- **Arrow keys** - Properly ignored (no effect, won't exit)
 - Type `exit`, `quit`, or `q` at any prompt - Exit
 
 The script will guide you through entering:
@@ -86,6 +86,16 @@ The script will guide you through entering:
 4. AWS profile (optional, uses default if configured)
 5. Execute upload? (default: yes - press Enter to upload)
 
+**Input History:**
+
+The tool remembers your previous inputs and allows you to quickly reuse them:
+
+- Press **UP arrow** to cycle backwards through your input history
+- Press **DOWN arrow** to cycle forwards through your history
+- Each field (Zendesk ID, Jira ID, file path, AWS profile) has its own history
+- History is saved to `~/.gtlogs-history.json` (last 20 entries per field)
+- Only validated inputs are saved to history
+
 **Example Interactive Session:**
 
 ```text
@@ -94,7 +104,8 @@ GT Logs Link Generator - Interactive Mode
 ======================================================================
 
 Generate S3 URLs and AWS CLI commands for Redis Support packages
-Press ESC to exit immediately, or Ctrl+C, or type 'exit'/'q' at any prompt
+Press ESC to exit immediately, Ctrl+C, or type 'exit'/'q' at any prompt
+Use UP/DOWN arrows to navigate through input history
 
 Enter Zendesk ticket ID (e.g., 145980): 145980
 ✓ Using: ZD-145980
@@ -450,7 +461,15 @@ aws s3 cp /path/to/rs_support_pkg.tar.gz s3://gt-logs/exa-to-gt/ZD-148901-RED-17
 
 ### Configuration
 
-The tool stores configuration in `~/.gtlogs-config.ini`:
+The tool stores configuration and history in your home directory:
+
+**Configuration file (`~/.gtlogs-config.ini`):**
+- Stores your default AWS profile
+
+**History file (`~/.gtlogs-history.json`):**
+- Stores your last 20 inputs per field (Zendesk ID, Jira ID, file path, AWS profile)
+- Automatically saved after each interactive session
+- Used for UP/DOWN arrow navigation in interactive mode
 
 ```bash
 # View current configuration
@@ -458,6 +477,12 @@ The tool stores configuration in `~/.gtlogs-config.ini`:
 
 # Set default AWS profile
 ./gtlogs-generator.py --set-profile redis-support
+
+# View history file
+cat ~/.gtlogs-history.json
+
+# Clear history (if needed)
+rm ~/.gtlogs-history.json
 ```
 
 ## Input Validation
