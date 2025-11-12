@@ -73,6 +73,7 @@ Run the script without arguments to enter interactive mode:
 
 - **ESC** - Exit immediately (standalone ESC key only - arrow keys won't trigger exit)
 - **Ctrl+C** - Exit
+- **Ctrl+U** - Check for updates and install if available
 - **UP/DOWN arrows** - Navigate through input history from previous sessions
 - **Backspace** - Delete characters
 - **Enter** - Submit input
@@ -101,12 +102,13 @@ The tool remembers your previous inputs and allows you to quickly reuse them:
 
 ```text
 ======================================================================
-GT Logs Link Generator - Interactive Mode
+GT Logs Link Generator v1.0.0 - Interactive Mode
 ======================================================================
 
 Generate S3 URLs and AWS CLI commands for Redis Support packages
 Press ESC to exit immediately, Ctrl+C, or type 'exit'/'q' at any prompt
 Use UP/DOWN arrows to navigate through input history
+Press Ctrl+U to check for updates
 
 Enter Zendesk ticket ID (e.g., 145980): 145980
 ✓ Using: ZD-145980
@@ -458,6 +460,7 @@ aws s3 cp /path/to/rs_support_pkg.tar.gz s3://gt-logs/exa-to-gt/ZD-148901-RED-17
 | `-e`, `--execute` | Execute S3 upload with automatic authentication | `--execute` |
 | `--set-profile` | Set default AWS profile | `--set-profile gt-logs` |
 | `--show-config` | Show current configuration | `--show-config` |
+| `--version` | Display version and check for updates | `--version` |
 | `-h`, `--help` | Show help message | `-h` |
 
 ### Configuration
@@ -487,6 +490,88 @@ cat ~/.gtlogs-history.json
 # Clear history (if needed)
 rm ~/.gtlogs-history.json
 ```
+
+### Automatic Updates
+
+The tool includes a built-in auto-update mechanism that keeps your installation up to date with the latest features and bug fixes.
+
+**How it works:**
+
+1. **Automatic update checks on startup** - Every time you run the script, it checks GitHub for new releases
+2. **User permission required** - Updates are never installed without your explicit approval
+3. **Safe updates with automatic backup** - Your current version is backed up before updating
+4. **Automatic rollback on failure** - If an update fails, your previous version is automatically restored
+
+**Update options when prompted:**
+
+```text
+🔍 Checking for updates...
+📦 Update available: v1.0.0 → v1.1.0
+
+Release highlights:
+- Added new feature X
+- Fixed bug Y
+- Performance improvements
+
+Update now? (y/n/s):
+  y - Yes, install the update now
+  n - No, don't update (you'll be asked again next time)
+  s - Skip for this session only (won't ask again until next run)
+```
+
+**Manual update check:**
+
+You can manually check for updates at any time:
+
+```bash
+# Check version and updates
+./gtlogs-generator.py --version
+
+# Or during interactive mode, press Ctrl+U at any prompt
+./gtlogs-generator.py
+# (Press Ctrl+U during any input prompt)
+```
+
+**Update process:**
+
+1. Script downloads the latest release from GitHub (5-second timeout)
+2. Creates backup of current version: `gtlogs-generator.py.backup`
+3. Downloads new version to temporary file
+4. Replaces current script with new version
+5. Sets executable permissions automatically
+6. On success: backup remains for manual rollback if needed
+7. On failure: automatically restores from backup
+
+**Error handling:**
+
+If the update fails for any reason (network timeout, download error, etc.):
+- Error message is displayed with details
+- Your current version is automatically restored from backup
+- You can continue using the tool without interruption
+
+**Offline behavior:**
+
+- Update checks fail silently if you're offline or GitHub is unreachable
+- Script continues normally without blocking or errors
+- No interruption to your workflow
+
+**Manual rollback:**
+
+If you need to revert to a previous version:
+
+```bash
+# Your previous version is saved as a backup
+mv gtlogs-generator.py.backup gtlogs-generator.py
+chmod +x gtlogs-generator.py
+```
+
+**Disabling update checks:**
+
+Update checks happen automatically on startup but fail silently if offline. If you want to completely avoid update checks, you can:
+
+- Use the `-s` (skip) option when prompted - skips only for that session
+- Run in an environment without internet access - checks will fail silently
+- There is no persistent "never check" option by design (ensures you stay up to date)
 
 ## Input Validation
 

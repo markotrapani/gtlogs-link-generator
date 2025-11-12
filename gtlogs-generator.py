@@ -4,6 +4,8 @@ GT Logs Link Generator
 Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 """
 
+VERSION = "1.0.0"
+
 import argparse
 import configparser
 import json
@@ -11,6 +13,8 @@ import os
 import re
 import subprocess
 import sys
+import urllib.request
+import urllib.error
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -37,6 +41,170 @@ else:
 class UserExitException(Exception):
     """Raised when user explicitly exits via ESC or exit commands."""
     pass
+
+
+class UpdateCheckException(Exception):
+    """Raised when Ctrl+U is pressed to trigger update check."""
+    pass
+
+
+def check_for_updates(timeout=5):
+    """Check GitHub for latest release version.
+
+    Args:
+        timeout: API request timeout in seconds
+
+    Returns:
+        dict with 'available', 'latest_version', 'download_url', 'release_notes'
+        or None if check fails
+    """
+    try:
+        url = "https://api.github.com/repos/markotrapani/gtlogs-link-generator/releases/latest"
+        req = urllib.request.Request(url)
+        req.add_header('Accept', 'application/vnd.github.v3+json')
+
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            data = json.loads(response.read().decode('utf-8'))
+
+        latest_version = data['tag_name'].lstrip('v')  # Remove 'v' prefix if present
+        current_version = VERSION
+
+        # Simple version comparison (assumes semantic versioning)
+        update_available = latest_version != current_version
+
+        # Get release notes (first 3 lines of body)
+        release_notes = []
+        if data.get('body'):
+            lines = data['body'].strip().split('\n')
+            release_notes = [line.strip() for line in lines[:3] if line.strip()]
+
+        # Get download URL for the Python script
+        download_url = f"https://raw.githubusercontent.com/markotrapani/gtlogs-link-generator/{data['tag_name']}/gtlogs-generator.py"
+
+        return {
+            'available': update_available,
+            'current_version': current_version,
+            'latest_version': latest_version,
+            'download_url': download_url,
+            'release_notes': release_notes
+        }
+    except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, KeyError) as e:
+        # Fail silently - user might be offline
+        return None
+    except Exception as e:
+        # Log unexpected errors but don't crash
+        print(f"⚠️  Update check failed: {e}", file=sys.stderr)
+        return None
+
+
+def perform_self_update(download_url, latest_version):
+    """Download and install update, with backup and error handling.
+
+    Args:
+        download_url: URL to download new version from
+        latest_version: Version string for logging
+
+    Returns:
+        True if successful, False otherwise
+    """
+    script_path = os.path.abspath(__file__)
+    backup_path = script_path + '.backup'
+    temp_path = script_path + '.tmp'
+
+    try:
+        print(f"📥 Downloading v{latest_version}...")
+
+        # Download new version to temporary file
+        req = urllib.request.Request(download_url)
+        with urllib.request.urlopen(req, timeout=10) as response:
+            new_content = response.read()
+
+        with open(temp_path, 'wb') as f:
+            f.write(new_content)
+
+        print(f"💾 Backing up current version to {os.path.basename(backup_path)}")
+
+        # Backup current version
+        if os.path.exists(backup_path):
+            os.remove(backup_path)
+        os.rename(script_path, backup_path)
+
+        # Install new version
+        os.rename(temp_path, script_path)
+
+        # Make executable
+        os.chmod(script_path, 0o755)
+
+        print(f"✅ Update successful! (v{latest_version})")
+        print("Please restart the script to use the new version.\n")
+        return True
+
+    except urllib.error.URLError as e:
+        print(f"❌ Download failed: {e.reason}", file=sys.stderr)
+        rollback_update(script_path, backup_path, temp_path)
+        return False
+    except urllib.error.HTTPError as e:
+        print(f"❌ Download failed: HTTP {e.code} {e.reason}", file=sys.stderr)
+        rollback_update(script_path, backup_path, temp_path)
+        return False
+    except OSError as e:
+        print(f"❌ File operation failed: {e}", file=sys.stderr)
+        rollback_update(script_path, backup_path, temp_path)
+        return False
+    except Exception as e:
+        print(f"❌ Unexpected error during update: {e}", file=sys.stderr)
+        rollback_update(script_path, backup_path, temp_path)
+        return False
+
+
+def rollback_update(script_path, backup_path, temp_path):
+    """Rollback failed update by restoring backup.
+
+    Args:
+        script_path: Path to the script file
+        backup_path: Path to backup file
+        temp_path: Path to temporary download file
+    """
+    try:
+        # Clean up temp file
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+        # Restore backup if we created one
+        if os.path.exists(backup_path) and not os.path.exists(script_path):
+            os.rename(backup_path, script_path)
+            print("✓ Rolled back to previous version", file=sys.stderr)
+    except Exception as e:
+        print(f"⚠️  Rollback failed: {e}", file=sys.stderr)
+        print(f"⚠️  Manual recovery: restore from {backup_path}", file=sys.stderr)
+
+
+def prompt_for_update(update_info):
+    """Prompt user to install update.
+
+    Args:
+        update_info: Dictionary from check_for_updates()
+
+    Returns:
+        True if user wants to update, False otherwise
+    """
+    print(f"\nℹ️  Update available: v{update_info['current_version']} → v{update_info['latest_version']}")
+
+    if update_info['release_notes']:
+        print("   Changes:")
+        for note in update_info['release_notes']:
+            print(f"   - {note}")
+
+    response = input("\nUpdate now? (y/n/s to skip): ").strip().lower()
+
+    if response == 'y':
+        return perform_self_update(update_info['download_url'], update_info['latest_version'])
+    elif response == 's':
+        print("Skipping update for this session.\n")
+        return False
+    else:
+        print("Update cancelled.\n")
+        return False
 
 
 class GTLogsGenerator:
@@ -512,6 +680,11 @@ def input_with_esc_detection(prompt: str, history_list: list = None) -> str:
                 print()
                 raise KeyboardInterrupt
 
+            # Ctrl+U (update check)
+            elif ch == '\x15':
+                print()
+                raise UpdateCheckException()
+
             # Regular printable characters
             elif ch.isprintable():
                 # Reset history navigation when user types
@@ -543,12 +716,12 @@ def interactive_mode():
     generator = GTLogsGenerator()
 
     print("\n" + "="*70)
-    print("GT Logs Link Generator - Interactive Mode")
+    print(f"GT Logs Link Generator v{VERSION} - Interactive Mode")
     print("="*70)
     print("\nGenerate S3 URLs and AWS CLI commands for Redis Support packages")
     if IMMEDIATE_INPUT_AVAILABLE:
-        print("Press ESC to exit immediately, Ctrl+C, or type 'exit'/'q' at any prompt")
-        print("Use UP/DOWN arrows to navigate through input history\n")
+        print("Press ESC to exit, Ctrl+C, or type 'exit'/'q' at any prompt")
+        print("Use UP/DOWN arrows for input history, Ctrl+U to check for updates\n")
     else:
         print("Press Ctrl+C to exit, or type 'exit' or 'q' at any prompt\n")
 
@@ -708,6 +881,19 @@ def interactive_mode():
         # Save history when user exits via ESC or exit command
         generator._save_history()
         return 0
+    except UpdateCheckException:
+        print("🔍 Checking for updates...")
+        update_info = check_for_updates()
+        if update_info and update_info['available']:
+            prompt_for_update(update_info)
+        elif update_info:
+            print(f"✓ You're up to date! (v{update_info['current_version']})\n")
+        else:
+            print("⚠️  Could not check for updates (offline or API error)\n")
+        # Don't exit, return to interactive mode - but we need to restart
+        print("Please restart the script to continue.\n")
+        generator._save_history()
+        return 0
     except KeyboardInterrupt:
         print("\n\n👋 Exiting...\n")
         # Save history even on Ctrl+C
@@ -759,6 +945,8 @@ Examples:
                        help='Set default AWS profile')
     parser.add_argument('--show-config', action='store_true',
                        help='Show current configuration')
+    parser.add_argument('--version', action='store_true',
+                       help='Show version and check for updates')
     parser.add_argument('-i', '--interactive', action='store_true',
                        help='Run in interactive mode')
     parser.add_argument('-e', '--execute', action='store_true',
@@ -779,8 +967,32 @@ Examples:
         print(f"Default AWS profile: {default_profile if default_profile else '(not set)'}")
         return 0
 
+    if args.version:
+        print(f"GT Logs Link Generator v{VERSION}")
+        print("\n🔍 Checking for updates...")
+        update_info = check_for_updates()
+        if update_info and update_info['available']:
+            prompt_for_update(update_info)
+        elif update_info:
+            print(f"✓ You're up to date!\n")
+        else:
+            print("⚠️  Could not check for updates (offline or API error)\n")
+        return 0
+
     # Interactive mode if no arguments or -i flag
     if args.interactive or (not args.zendesk_id and not args.jira_id):
+        # Check for updates before starting interactive mode
+        print("🔍 Checking for updates...")
+        update_info = check_for_updates()
+        if update_info and update_info['available']:
+            if prompt_for_update(update_info):
+                # Update was installed, exit so user can restart
+                return 0
+        elif update_info:
+            # Up to date, continue silently
+            pass
+        # If check failed (offline), continue silently
+
         return interactive_mode()
 
     # Require at least Zendesk ID for generation (Jira is now optional)
