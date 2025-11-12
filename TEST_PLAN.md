@@ -628,11 +628,19 @@ The auto-update feature is considered **production-ready** if:
 
 ## Test Releases
 
-### v1.0.3
-This version is a test release to verify the **simplified update prompt** (y/n only, removed 's' option). Use this version to test:
-- Update flow from v1.0.1 or v1.0.2 → v1.0.3
+### v1.0.4
+This version is a test release to enable testing the improved update UX from v1.0.3. Use this to test:
+- Update flow from v1.0.3 → v1.0.4
+- --version / -v flag shows update without prompting
 - Ctrl+U functionality during interactive mode
-- Simplified y/n update prompt behavior
+- Simplified y/n update prompt behavior in interactive mode
+
+### v1.0.3
+This version improved the update UX:
+- Simplified update prompt from y/n/s to y/n only
+- --version flag now informational only (no interactive prompt)
+- Added -v shorthand flag
+- 'n' option continues to interactive mode without exiting
 
 ### v1.0.2
 This version simplified the update prompt from y/n/s to y/n only. The 'n' option continues to interactive mode without exiting.
