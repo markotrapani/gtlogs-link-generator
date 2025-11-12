@@ -513,11 +513,12 @@ Release highlights:
 - Fixed bug Y
 - Performance improvements
 
-Update now? (y/n/s):
-  y - Yes, install the update now
-  n - No, don't update (you'll be asked again next time)
-  s - Skip for this session only (won't ask again until next run)
+Update now? (y/n):
+  y - Yes, install the update now (script will exit, restart to use new version)
+  n - No, continue without updating (continues to interactive mode)
 ```
+
+**Note:** If you choose 'n', the script continues normally. You can trigger an update check later by pressing **Ctrl+U** during interactive mode, or you'll be asked again next time you run the script.
 
 **Manual update check:**
 
@@ -567,10 +568,10 @@ chmod +x gtlogs-generator.py
 
 **Disabling update checks:**
 
-Update checks happen automatically on startup but fail silently if offline. If you want to completely avoid update checks, you can:
+Update checks happen automatically on startup but fail silently if offline. If you want to avoid updating:
 
-- Use the `-s` (skip) option when prompted - skips only for that session
-- Run in an environment without internet access - checks will fail silently
+- Choose 'n' when prompted - continues to interactive mode
+- Run in an environment without internet access - checks will fail silently and continue
 - There is no persistent "never check" option by design (ensures you stay up to date)
 
 ## Input Validation

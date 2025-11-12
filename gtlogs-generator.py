@@ -4,7 +4,7 @@ GT Logs Link Generator
 Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 """
 
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 
 import argparse
 import configparser
@@ -188,20 +188,17 @@ def prompt_for_update(update_info):
     Returns:
         True if user wants to update, False otherwise
     """
-    print(f"\nℹ️  Update available: v{update_info['current_version']} → v{update_info['latest_version']}")
+    print(f"\n📦 Update available: v{update_info['current_version']} → v{update_info['latest_version']}")
 
     if update_info['release_notes']:
         print("   Changes:")
         for note in update_info['release_notes']:
             print(f"   - {note}")
 
-    response = input("\nUpdate now? (y/n/s to skip): ").strip().lower()
+    response = input("\nUpdate now? (y/n): ").strip().lower()
 
     if response == 'y':
         return perform_self_update(update_info['download_url'], update_info['latest_version'])
-    elif response == 's':
-        print("Skipping update for this session.\n")
-        return False
     else:
         print("Update cancelled.\n")
         return False
