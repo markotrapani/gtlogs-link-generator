@@ -969,7 +969,12 @@ Examples:
         print("\n🔍 Checking for updates...")
         update_info = check_for_updates()
         if update_info and update_info['available']:
-            prompt_for_update(update_info)
+            print(f"📦 Update available: v{update_info['current_version']} → v{update_info['latest_version']}")
+            if update_info['release_notes']:
+                print("   Changes:")
+                for note in update_info['release_notes']:
+                    print(f"   - {note}")
+            print("\nRun the script in interactive mode to update, or press Ctrl+U during runtime.\n")
         elif update_info:
             print(f"✓ You're up to date!\n")
         else:
