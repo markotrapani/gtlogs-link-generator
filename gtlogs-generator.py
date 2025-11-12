@@ -4,7 +4,7 @@ GT Logs Link Generator
 Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 """
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 import argparse
 import configparser
