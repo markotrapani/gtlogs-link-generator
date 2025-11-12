@@ -942,7 +942,7 @@ Examples:
                        help='Set default AWS profile')
     parser.add_argument('--show-config', action='store_true',
                        help='Show current configuration')
-    parser.add_argument('--version', action='store_true',
+    parser.add_argument('-v', '--version', action='store_true',
                        help='Show version and check for updates')
     parser.add_argument('-i', '--interactive', action='store_true',
                        help='Run in interactive mode')

@@ -460,7 +460,7 @@ aws s3 cp /path/to/rs_support_pkg.tar.gz s3://gt-logs/exa-to-gt/ZD-148901-RED-17
 | `-e`, `--execute` | Execute S3 upload with automatic authentication | `--execute` |
 | `--set-profile` | Set default AWS profile | `--set-profile gt-logs` |
 | `--show-config` | Show current configuration | `--show-config` |
-| `--version` | Display version and check for updates | `--version` |
+| `-v`, `--version` | Display version and check for updates | `-v` or `--version` |
 | `-h`, `--help` | Show help message | `-h` |
 
 ### Configuration
@@ -526,6 +526,8 @@ You can manually check for updates at any time:
 
 ```bash
 # Check version and updates
+./gtlogs-generator.py -v
+# or
 ./gtlogs-generator.py --version
 
 # Or during interactive mode, press Ctrl+U at any prompt
