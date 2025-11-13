@@ -4,7 +4,7 @@ GT Logs Link Generator
 Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 """
 
-VERSION = "1.0.7"
+VERSION = "1.0.8"
 
 import argparse
 import configparser
@@ -884,7 +884,7 @@ def interactive_mode():
         if update_info and update_info['available']:
             if prompt_for_update(update_info):
                 # Update was installed, need to restart to use new version
-                print("Please restart the script to use the new version.\n")
+                # Message already printed by perform_self_update()
                 generator._save_history()
                 return 0
             else:

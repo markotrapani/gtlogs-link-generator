@@ -628,6 +628,18 @@ The auto-update feature is considered **production-ready** if:
 
 ## Test Releases
 
+### v1.0.8
+This version fixes the duplicate "Please restart the script to use the new version" message that appeared when updating via Ctrl+U. The message is now only printed once by `perform_self_update()`.
+
+### v1.0.7
+This version is a test release to enable end-to-end testing of the complete update flow from v1.0.6.
+
+### v1.0.6
+This version fixed the Ctrl+U behavior when user chooses 'n' - the script now returns to interactive mode instead of forcing a restart.
+
+### v1.0.5
+This version fixed the Ctrl+U behavior when no update is available or when offline - the script now returns to interactive mode instead of forcing a restart.
+
 ### v1.0.4
 This version is a test release to enable testing the improved update UX from v1.0.3. Use this to test:
 - Update flow from v1.0.3 → v1.0.4
