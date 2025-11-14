@@ -1,22 +1,25 @@
-# CLAUDE.md - GT Logs Link Generator
+# CLAUDE.md - GT Logs Helper
 
 **Project Type:** Python CLI Tool (Standalone utility)
 
-This is a command-line tool for generating S3 bucket URLs and AWS CLI commands for Redis Support packages. It helps Redis Support engineers quickly create properly formatted S3 paths for sharing customer support packages securely with engineering teams.
+This is a comprehensive command-line tool for uploading and downloading Redis Support packages to/from S3 buckets. It helps Redis Support engineers manage customer support packages, generate properly formatted S3 paths, and efficiently transfer files between local systems and AWS S3.
 
 ---
 
 ## Project Overview
 
-**Purpose:** Automate the generation of properly formatted S3 paths and AWS CLI upload commands for Redis Support packages
+**Purpose:** Complete S3 management solution for Redis Support packages - upload, download, and path generation
 
 **Main Features:**
 
+- **Two Operation Modes:** Upload to S3 and Download from S3 (v1.1.0+)
 - Two upload scenarios: ZD-only (most common) and ZD+Jira (Engineering escalation)
-- Interactive mode with guided prompts and ESC key support
-- Command-line mode for quick generation
+- Interactive mode with mode selection (Upload/Download)
+- Download functionality with file listing and batch downloads
+- Smart path parsing (accepts full S3 paths or ticket IDs)
+- Command-line mode for quick operations
 - Automatic AWS SSO authentication handling
-- Input validation (Zendesk IDs, Jira IDs, file paths)
+- Input validation (Zendesk IDs, Jira IDs, file paths, S3 paths)
 - Configuration persistence for default AWS profiles
 
 **Technology Stack:**
@@ -38,21 +41,21 @@ This is a command-line tool for generating S3 bucket URLs and AWS CLI commands f
 - **Must be numerical only** (no letters, special chars except hyphen in prefix)
 - **Accepted formats:** `145980`, `ZD-145980`, `zd-145980`
 - **Output format:** `ZD-145980`
-- **Validation function:** `validate_zendesk_id()` in [gtlogs-generator.py:70-87](gtlogs-generator.py#L70-L87)
+- **Validation function:** `validate_zendesk_id()` in [gtlogs-helper.py:70-87](gtlogs-helper.py#L70-L87)
 
 #### Jira ID Validation
 
 - **Must be RED-# or MOD-# with numerical suffix only**
 - **Accepted formats:** `RED-172041`, `MOD-12345`, `RED172041` (auto-adds hyphen)
 - **Output format:** `RED-172041` or `MOD-12345`
-- **Validation function:** `validate_jira_id()` in [gtlogs-generator.py:90-108](gtlogs-generator.py#L90-L108)
+- **Validation function:** `validate_jira_id()` in [gtlogs-helper.py:90-108](gtlogs-helper.py#L90-L108)
 
 #### File Path Validation
 
 - **File must exist in filesystem**
 - **Path must point to a file, not a directory**
 - **Supports tilde expansion** (`~/Downloads/file.tar.gz`)
-- **Validation function:** `validate_file_path()` in [gtlogs-generator.py:111-139](gtlogs-generator.py#L111-L139)
+- **Validation function:** `validate_file_path()` in [gtlogs-helper.py:111-139](gtlogs-helper.py#L111-L139)
 
 **WHY THIS MATTERS:**
 
@@ -82,7 +85,7 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 
 **Use case:** Sharing support packages with Engineering via Jira tickets
 
-**Path generation function:** `generate_s3_path()` in [gtlogs-generator.py:141-154](gtlogs-generator.py#L141-L154)
+**Path generation function:** `generate_s3_path()` in [gtlogs-helper.py:141-154](gtlogs-helper.py#L141-L154)
 
 **CRITICAL:** Do not change bucket names, path structures, or logic without explicit permission. These paths are relied upon by multiple teams and automation systems.
 
@@ -92,8 +95,8 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 
 **Automatic authentication handling** is a key feature. The flow is:
 
-1. **Check authentication** via `check_aws_authentication()` ([gtlogs-generator.py:191-210](gtlogs-generator.py#L191-L210))
-2. **If not authenticated**, automatically run `aws_sso_login()` ([gtlogs-generator.py:213-236](gtlogs-generator.py#L213-L236))
+1. **Check authentication** via `check_aws_authentication()` ([gtlogs-helper.py:191-210](gtlogs-helper.py#L191-L210))
+2. **If not authenticated**, automatically run `aws_sso_login()` ([gtlogs-helper.py:213-236](gtlogs-helper.py#L213-L236))
 3. **If login fails**, abort with clear error message
 4. **If authenticated**, proceed with upload
 
@@ -106,8 +109,8 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 
 **Execution points:**
 
-- Interactive mode: [gtlogs-generator.py:548-562](gtlogs-generator.py#L548-L562)
-- CLI mode with `--execute`: [gtlogs-generator.py:697-710](gtlogs-generator.py#L697-L710)
+- Interactive mode: [gtlogs-helper.py:548-562](gtlogs-helper.py#L548-L562)
+- CLI mode with `--execute`: [gtlogs-helper.py:697-710](gtlogs-helper.py#L697-L710)
 
 ---
 
@@ -115,7 +118,7 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 
 **Enhanced keyboard input** allows immediate ESC key exit without pressing Enter.
 
-**Key implementation:** `input_with_esc_detection()` in [gtlogs-generator.py:309-416](gtlogs-generator.py#L309-L416)
+**Key implementation:** `input_with_esc_detection()` in [gtlogs-helper.py:309-416](gtlogs-helper.py#L309-L416)
 
 **Features:**
 
@@ -147,9 +150,9 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 
 **Configuration functions:**
 
-- `_load_config()` - [gtlogs-generator.py:45-50](gtlogs-generator.py#L45-L50)
-- `_save_config()` - [gtlogs-generator.py:52-60](gtlogs-generator.py#L52-L60)
-- `get_default_aws_profile()` - [gtlogs-generator.py:62-67](gtlogs-generator.py#L62-L67)
+- `_load_config()` - [gtlogs-helper.py:45-50](gtlogs-helper.py#L45-L50)
+- `_save_config()` - [gtlogs-helper.py:52-60](gtlogs-helper.py#L52-L60)
+- `get_default_aws_profile()` - [gtlogs-helper.py:62-67](gtlogs-helper.py#L62-L67)
 
 **CLI commands:**
 
@@ -170,7 +173,7 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 
 **Example:** Add support for `ENG-` prefix in addition to `RED-` and `MOD-`
 
-1. Update `validate_jira_id()` in [gtlogs-generator.py:90-108](gtlogs-generator.py#L90-L108)
+1. Update `validate_jira_id()` in [gtlogs-helper.py:90-108](gtlogs-helper.py#L90-L108)
 2. Add `ENG` to regex patterns (lines 100, 105)
 3. Update error messages to mention `ENG-`
 4. Update README.md documentation:
@@ -183,7 +186,7 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 
 **Example:** Add `--dry-run` flag to show what would be uploaded without executing
 
-1. Add argument to parser in `main()` ([gtlogs-generator.py:587-631](gtlogs-generator.py#L587-L631))
+1. Add argument to parser in `main()` ([gtlogs-helper.py:587-631](gtlogs-helper.py#L587-L631))
 2. Implement logic in command execution flow
 3. Add to README.md "Command Reference" section
 4. Add to help text examples
@@ -211,15 +214,15 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 
 ```bash
 # Valid inputs
-./gtlogs-generator.py 145980 RED-172041                    # Should succeed
-./gtlogs-generator.py ZD-145980 RED172041                  # Should succeed
-./gtlogs-generator.py 145980 MOD-12345                     # Should succeed
+./gtlogs-helper.py 145980 RED-172041                    # Should succeed
+./gtlogs-helper.py ZD-145980 RED172041                  # Should succeed
+./gtlogs-helper.py 145980 MOD-12345                     # Should succeed
 
 # Invalid inputs - must reject
-./gtlogs-generator.py 145980abc RED-172041                 # Must fail: non-numerical ZD
-./gtlogs-generator.py 145980 ABC-12345                     # Must fail: invalid Jira prefix
-./gtlogs-generator.py 145980 RED-172041abc                 # Must fail: non-numerical Jira suffix
-./gtlogs-generator.py 145980 12345                         # Must fail: missing Jira prefix
+./gtlogs-helper.py 145980abc RED-172041                 # Must fail: non-numerical ZD
+./gtlogs-helper.py 145980 ABC-12345                     # Must fail: invalid Jira prefix
+./gtlogs-helper.py 145980 RED-172041abc                 # Must fail: non-numerical Jira suffix
+./gtlogs-helper.py 145980 12345                         # Must fail: missing Jira prefix
 ```
 
 #### File Path Testing
@@ -229,18 +232,18 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 echo "test" > /tmp/test-package.tar.gz
 
 # Valid file path
-./gtlogs-generator.py 145980 RED-172041 -f /tmp/test-package.tar.gz   # Should succeed
+./gtlogs-helper.py 145980 RED-172041 -f /tmp/test-package.tar.gz   # Should succeed
 
 # Invalid file paths - must reject
-./gtlogs-generator.py 145980 RED-172041 -f /nonexistent/file.tar.gz   # Must fail: file doesn't exist
-./gtlogs-generator.py 145980 RED-172041 -f /tmp                       # Must fail: directory not file
+./gtlogs-helper.py 145980 RED-172041 -f /nonexistent/file.tar.gz   # Must fail: file doesn't exist
+./gtlogs-helper.py 145980 RED-172041 -f /tmp                       # Must fail: directory not file
 ```
 
 #### Interactive Mode Testing
 
 ```bash
 # Test keyboard controls
-./gtlogs-generator.py
+./gtlogs-helper.py
 # - Press ESC (should exit immediately)
 # - Press arrow keys (should be ignored, not exit)
 # - Type "exit" (should exit)
@@ -254,12 +257,12 @@ echo "test" > /tmp/test-package.tar.gz
 ```bash
 # Test with authenticated profile
 aws sso login --profile gt-logs
-./gtlogs-generator.py 145980 RED-172041 -f /tmp/test.tar.gz --execute
+./gtlogs-helper.py 145980 RED-172041 -f /tmp/test.tar.gz --execute
 # Should: detect authentication, skip login, upload file
 
 # Test with unauthenticated profile
 aws sso logout --profile gt-logs  # (if logout command exists)
-./gtlogs-generator.py 145980 RED-172041 -f /tmp/test.tar.gz --execute
+./gtlogs-helper.py 145980 RED-172041 -f /tmp/test.tar.gz --execute
 # Should: detect no auth, run 'aws sso login', then upload
 ```
 
@@ -270,25 +273,38 @@ aws sso logout --profile gt-logs  # (if logout command exists)
 ### Code Organization
 
 ```text
-gtlogs-generator.py
-├── GTLogsGenerator class (main logic)
-│   ├── validate_zendesk_id()     - Input validation
-│   ├── validate_jira_id()        - Input validation
-│   ├── validate_file_path()      - File validation
-│   ├── generate_s3_path()        - S3 path generation
-│   ├── generate_aws_command()    - AWS CLI command generation
-│   ├── check_aws_authentication() - Auth check
-│   ├── aws_sso_login()           - SSO login
-│   └── execute_s3_upload()       - Upload execution
+gtlogs-helper.py
+├── GTLogsHelper class (main logic)
+│   ├── Upload functionality
+│   │   ├── validate_zendesk_id()     - Input validation
+│   │   ├── validate_jira_id()        - Input validation
+│   │   ├── validate_file_path()      - File validation
+│   │   ├── generate_s3_path()        - S3 path generation
+│   │   ├── generate_aws_command()    - AWS CLI command generation
+│   │   └── execute_s3_upload()       - Upload execution
+│   │
+│   ├── Download functionality (v1.1.0+)
+│   │   ├── parse_s3_path()           - Parse S3 paths or ticket IDs
+│   │   ├── list_s3_files()           - List files in S3 directory
+│   │   ├── download_from_s3()        - Download single file
+│   │   └── generate_download_command() - Generate download AWS CLI command
+│   │
+│   └── Common functionality
+│       ├── check_aws_authentication() - Auth check
+│       ├── aws_sso_login()           - SSO login
+│       ├── get_default_aws_profile() - Config management
+│       └── _save_config()             - Save configuration
 │
 ├── Terminal input helpers
 │   ├── getch_timeout()           - Low-level char read with timeout
 │   ├── getch()                   - Single char read
 │   └── input_with_esc_detection() - Enhanced input with ESC support
 │
-├── User interaction
-│   ├── check_exit_input()        - Exit command detection
-│   └── interactive_mode()        - Interactive prompts and workflow
+├── User interaction modes
+│   ├── interactive_mode()        - Mode selection (Upload/Download)
+│   ├── interactive_upload_mode()  - Upload prompts and workflow
+│   ├── interactive_download_mode() - Download prompts and workflow
+│   └── check_exit_input()        - Exit command detection
 │
 └── main()                        - CLI argument parsing and routing
 ```
@@ -378,7 +394,7 @@ print(f"[DEBUG] Raw char: {repr(ch)}")
 **Issue:** Arrow keys trigger exit
 
 - **Cause:** ESC sequence timeout too short
-- **Fix:** Increase `VTIME` in [gtlogs-generator.py:349](gtlogs-generator.py#L349)
+- **Fix:** Increase `VTIME` in [gtlogs-helper.py:349](gtlogs-helper.py#L349)
 
 **Issue:** Terminal broken after script crash
 
@@ -388,7 +404,7 @@ print(f"[DEBUG] Raw char: {repr(ch)}")
 **Issue:** AWS authentication fails silently
 
 - **Cause:** Timeout too short or AWS CLI not in PATH
-- **Fix:** Check `timeout` in `check_aws_authentication()` ([gtlogs-generator.py:206](gtlogs-generator.py#L206))
+- **Fix:** Check `timeout` in `check_aws_authentication()` ([gtlogs-helper.py:206](gtlogs-helper.py#L206))
 
 **Issue:** File validation fails on valid paths
 

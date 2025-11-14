@@ -1,10 +1,14 @@
-# GT Logs Link Generator
+# GT Logs Helper
 
-A command-line tool for generating S3 bucket URLs and AWS CLI commands for Redis Support packages. This tool helps Redis Support engineers quickly create properly formatted S3 paths for sharing customer support packages securely with engineering teams.
+A comprehensive command-line tool for uploading and downloading Redis Support packages to/from S3 buckets. This tool helps Redis Support engineers manage customer support packages, generate properly formatted S3 paths, and efficiently transfer files between local systems and AWS S3.
 
 ## Purpose
 
-Redis Support engineers upload customer support packages to the `gt-logs` S3 bucket for storage and sharing. This tool automates the generation of properly formatted S3 paths and AWS CLI upload commands.
+Redis Support engineers use the `gt-logs` S3 bucket for storing and sharing customer support packages. This tool provides a complete solution for:
+- **Uploading** support packages with properly formatted S3 paths
+- **Downloading** existing packages from S3 (new in v1.1.0!)
+- **Generating** AWS CLI commands for manual operations
+- **Managing** authentication and profiles
 
 **Two upload scenarios supported:**
 
@@ -20,28 +24,40 @@ Redis Support engineers upload customer support packages to the `gt-logs` S3 buc
    - **Primary use:** Redis Cloud issues escalated to Engineering
    - **Also supports:** Redis Software issues (though less common, as @exatogt automation with Files.com handles most Redis Software uploads automatically)
 
-**Key Features:**
+## Key Features
 
-This tool automates:
+**Upload Mode:**
+- Generate properly formatted S3 bucket paths for both scenarios
+- Create complete AWS CLI commands for uploading support packages
+- Validate all inputs (Zendesk IDs, Jira IDs, file paths)
+- Automatic command execution with AWS SSO authentication handling
 
-- Properly formatted S3 bucket paths for both scenarios
-- Complete AWS CLI commands for uploading support packages
-- Validation of all inputs (Zendesk IDs, Jira IDs, file paths)
-- **Automatic command execution** with AWS SSO authentication handling (optional)
+**Download Mode (New in v1.1.0):**
+- Download files from S3 using full paths or ticket IDs
+- List and select files from directories
+- Batch download multiple files at once
+- Smart path parsing (accepts ZD-145980 or full S3 paths)
+
+**General Features:**
+- Interactive mode with mode selection (Upload/Download)
+- Input history with arrow key navigation
+- Automatic AWS SSO authentication
+- Configuration persistence for default profiles
+- Self-update capability with version checking
 
 ## Installation
 
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/markotrapani/gtlogs-link-generator.git
-cd gtlogs-link-generator
+git clone https://github.com/markotrapani/gtlogs-helper.git
+cd gtlogs-helper
 ```
 
 ### Make Script Executable (if needed)
 
 ```bash
-chmod +x gtlogs-generator.py
+chmod +x gtlogs-helper.py
 ```
 
 ### Optional: Add to PATH
@@ -50,13 +66,13 @@ For convenient access from anywhere, add an alias to your shell profile:
 
 ```bash
 # Add to ~/.zshrc or ~/.bashrc
-alias gtlogs="/path/to/gtlogs-link-generator/gtlogs-generator.py"
+alias gtlogs="/path/to/gtlogs-helper/gtlogs-helper.py"
 ```
 
 Or create a symbolic link:
 
 ```bash
-sudo ln -s /path/to/gtlogs-link-generator/gtlogs-generator.py /usr/local/bin/gtlogs
+sudo ln -s /path/to/gtlogs-helper/gtlogs-helper.py /usr/local/bin/gtlogs
 ```
 
 ## Quick Start
@@ -66,8 +82,12 @@ sudo ln -s /path/to/gtlogs-link-generator/gtlogs-generator.py /usr/local/bin/gtl
 Run the script without arguments to enter interactive mode:
 
 ```bash
-./gtlogs-generator.py
+./gtlogs-helper.py
 ```
+
+You'll be prompted to choose between:
+1. **Upload Mode** - Generate S3 paths and upload files
+2. **Download Mode** - Retrieve files from S3
 
 **Keyboard Controls:**
 
@@ -98,17 +118,27 @@ The tool remembers your previous inputs and allows you to quickly reuse them:
 - Only validated inputs are saved to history
 - **History is preserved regardless of how you exit** (ESC, Ctrl+C, exit commands, or normal completion)
 
-**Example Interactive Session:**
+**Example Interactive Session - Upload Mode:**
 
 ```text
 ======================================================================
-GT Logs Link Generator v1.0.0 - Interactive Mode
+GT Logs Helper v1.1.0 - Interactive Mode
 ======================================================================
 
-Generate S3 URLs and AWS CLI commands for Redis Support packages
+Upload and download Redis Support packages to/from S3
 Press ESC to exit immediately, Ctrl+C, or type 'exit'/'q' at any prompt
 Use UP/DOWN arrows to navigate through input history
 Press Ctrl+U to check for updates
+
+Select operation mode:
+  1. Upload to S3 (generate links and upload files)
+  2. Download from S3 (retrieve files from existing paths)
+
+Enter choice (1 or 2): 1
+
+--------------------------------------------------
+Upload Mode - Generate S3 URLs and upload files
+--------------------------------------------------
 
 Enter Zendesk ticket ID (e.g., 145980): 145980
 ✓ Using: ZD-145980
@@ -178,19 +208,88 @@ AWS CLI Command:
    aws sso login --profile gt-logs
 ```
 
-### Command-Line Mode
+**Example Interactive Session - Download Mode:**
+
+```text
+======================================================================
+GT Logs Helper v1.1.0 - Interactive Mode
+======================================================================
+
+Select operation mode:
+  1. Upload to S3 (generate links and upload files)
+  2. Download from S3 (retrieve files from existing paths)
+
+Enter choice (1 or 2): 2
+
+--------------------------------------------------
+Download Mode - Retrieve files from S3
+--------------------------------------------------
+
+Enter S3 path to download from.
+Examples:
+  - Full path: s3://gt-logs/zendesk-tickets/ZD-145980/file.tar.gz
+  - Ticket ID: ZD-145980 (will list available files)
+  - Ticket + Jira: ZD-145980-RED-172041
+
+Enter S3 path or ticket ID: ZD-145980
+✓ Parsed: s3://gt-logs/zendesk-tickets/ZD-145980/
+
+Enter AWS profile (press Enter for default 'gt-logs'):
+✓ Using default profile: gt-logs
+
+Checking AWS authentication...
+✓ AWS profile 'gt-logs' is authenticated
+
+🔍 Listing files in s3://gt-logs/zendesk-tickets/ZD-145980/...
+
+Found 3 file(s):
+  1. zendesk-tickets/ZD-145980/debuginfo-20240115.tar.gz
+  2. zendesk-tickets/ZD-145980/logs-20240115.tar.gz
+  3. zendesk-tickets/ZD-145980/metrics-20240115.csv
+
+Select files to download:
+  - Enter file number(s) separated by commas (e.g., 1,3,5)
+  - Enter 'all' to download all files
+  - Press Enter to cancel
+
+Your selection: 1,2
+
+Where to save the files?
+Local directory (press Enter for current directory): ~/Downloads
+
+📥 Downloading 2 file(s)...
+
+📥 Downloading from S3...
+   Source: s3://gt-logs/zendesk-tickets/ZD-145980/debuginfo-20240115.tar.gz
+   Destination: ~/Downloads/debuginfo-20240115.tar.gz
+   Running: aws s3 cp "s3://gt-logs/..." "~/Downloads/..." --profile gt-logs
+
+✅ Download successful! File saved to: ~/Downloads/debuginfo-20240115.tar.gz
+
+📥 Downloading from S3...
+   Source: s3://gt-logs/zendesk-tickets/ZD-145980/logs-20240115.tar.gz
+   Destination: ~/Downloads/logs-20240115.tar.gz
+   Running: aws s3 cp "s3://gt-logs/..." "~/Downloads/..." --profile gt-logs
+
+✅ Download successful! File saved to: ~/Downloads/logs-20240115.tar.gz
+
+✅ Downloaded 2/2 file(s) successfully
+```
+
+### Command-Line Mode - Upload
 
 For quick one-time usage or scripting:
 
 ```bash
-./gtlogs-generator.py 145980 RED-172041
+# Generate S3 path for upload
+./gtlogs-helper.py 145980 RED-172041
 ```
 
 **Output:**
 
 ```text
 ======================================================================
-GT Logs Link Generator
+GT Logs Helper
 ======================================================================
 
 S3 Path:
@@ -208,12 +307,27 @@ AWS CLI Command:
    aws sso login --profile <your-aws-profile>
 ```
 
+### Command-Line Mode - Download
+
+Download files from S3:
+
+```bash
+# Download a specific file
+./gtlogs-helper.py --download s3://gt-logs/zendesk-tickets/ZD-145980/debuginfo.tar.gz
+
+# Download using ticket ID (lists files)
+./gtlogs-helper.py --download ZD-145980
+
+# Download to specific directory
+./gtlogs-helper.py --download ZD-145980 --output ~/Downloads/
+```
+
 ### Command-Line Mode with Automatic Execution
 
 Use the `--execute` (or `-e`) flag to automatically upload the file with authentication handling:
 
 ```bash
-./gtlogs-generator.py 145980 RED-172041 -f /path/to/support_package.tar.gz --execute
+./gtlogs-helper.py 145980 RED-172041 -f /path/to/support_package.tar.gz --execute
 ```
 
 **What happens:**
@@ -252,7 +366,7 @@ AWS CLI Command:
 ### Generate Complete AWS CLI Command
 
 ```bash
-./gtlogs-generator.py 145980 RED-172041 -f /path/to/support_package.tar.gz
+./gtlogs-helper.py 145980 RED-172041 -f /path/to/support_package.tar.gz
 ```
 
 **Output:**
@@ -280,31 +394,32 @@ AWS CLI Command:
 
 ```bash
 # Use specific AWS profile
-./gtlogs-generator.py 145980 RED-172041 -f support.tar.gz -p redis-support
+./gtlogs-helper.py 145980 RED-172041 -f support.tar.gz -p redis-support
 
 # Set default AWS profile (saved to ~/.gtlogs-config.ini)
-./gtlogs-generator.py --set-profile redis-support
+./gtlogs-helper.py --set-profile redis-support
 
 # Now all future commands will use the default profile
-./gtlogs-generator.py 145980 RED-172041 -f support.tar.gz
+./gtlogs-helper.py 145980 RED-172041 -f support.tar.gz
 ```
 
 ## Usage Examples
 
-### Use Case 1: Redis Cloud Without Jira (Most Common)
+### Use Case 1: Upload - Redis Cloud Without Jira (Most Common)
 
 For Redis Cloud environments without Engineering escalation.
 
 **Command-line:**
 
 ```bash
-./gtlogs-generator.py 145980 -f /path/to/support_package.tar.gz
+./gtlogs-helper.py 145980 -f /path/to/support_package.tar.gz
 ```
 
 **Interactive mode:**
 
 ```bash
-./gtlogs-generator.py
+./gtlogs-helper.py
+# Choose: 1 (Upload)
 # Enter ZD: 145980
 # Press Enter to skip Jira
 # Enter file path: /path/to/support_package.tar.gz
@@ -324,7 +439,7 @@ aws s3 cp /path/to/support_package.tar.gz s3://gt-logs/zendesk-tickets/ZD-145980
 
 ---
 
-### Use Case 2: Redis Cloud with Jira (Primary Method for Engineering Escalation)
+### Use Case 2: Upload - Redis Cloud with Jira (Engineering Escalation)
 
 For Redis Cloud issues escalated to Engineering via RED or MOD Jira tickets.
 
@@ -332,16 +447,17 @@ For Redis Cloud issues escalated to Engineering via RED or MOD Jira tickets.
 
 ```bash
 # Redis Enterprise bug (RED)
-./gtlogs-generator.py 147823 RED-172041 -f ./support_pkg_cluster_1.tar.gz
+./gtlogs-helper.py 147823 RED-172041 -f ./support_pkg_cluster_1.tar.gz
 
 # Module bug (MOD)
-./gtlogs-generator.py 145980 MOD-12345 -f /path/to/customer_support.tar.gz
+./gtlogs-helper.py 145980 MOD-12345 -f /path/to/customer_support.tar.gz
 ```
 
 **Interactive mode:**
 
 ```bash
-./gtlogs-generator.py
+./gtlogs-helper.py
+# Choose: 1 (Upload)
 # Enter ZD: 147823
 # Enter Jira: RED-172041
 # Enter file path: ./support_pkg_cluster_1.tar.gz
@@ -361,20 +477,53 @@ aws s3 cp ./support_pkg_cluster_1.tar.gz s3://gt-logs/exa-to-gt/ZD-147823-RED-17
 
 ---
 
-### Use Case 3: Redis Software with Jira (Alternative Method)
+### Use Case 3: Download - Retrieve Support Packages
+
+Download existing packages from S3 for analysis or sharing.
+
+**Command-line:**
+
+```bash
+# Download specific file
+./gtlogs-helper.py --download s3://gt-logs/zendesk-tickets/ZD-145980/debuginfo.tar.gz
+
+# List and download from ticket
+./gtlogs-helper.py --download ZD-145980 --output ~/Downloads/
+```
+
+**Interactive mode:**
+
+```bash
+./gtlogs-helper.py
+# Choose: 2 (Download)
+# Enter: ZD-145980
+# Select files to download
+# Enter local directory
+```
+
+**When to use:**
+
+- Need to retrieve previously uploaded packages
+- Analyzing packages from other engineers
+- Downloading for local debugging
+
+---
+
+### Use Case 4: Redis Software with Jira (Alternative Method)
 
 For Redis Software (on-prem) issues escalated to Engineering.
 
 **Command-line:**
 
 ```bash
-./gtlogs-generator.py 148901 RED-173052 -f /path/to/rs_support_pkg.tar.gz
+./gtlogs-helper.py 148901 RED-173052 -f /path/to/rs_support_pkg.tar.gz
 ```
 
 **Interactive mode:**
 
 ```bash
-./gtlogs-generator.py
+./gtlogs-helper.py
+# Choose: 1 (Upload)
 # Enter ZD: 148901
 # Enter Jira: RED-173052
 # Enter file path: /path/to/rs_support_pkg.tar.gz
@@ -400,39 +549,45 @@ aws s3 cp /path/to/rs_support_pkg.tar.gz s3://gt-logs/exa-to-gt/ZD-148901-RED-17
 
 | Mode | Command | When to Use |
 |------|---------|-------------|
-| **Interactive** | `./gtlogs-generator.py` | First time, or when you want guided prompts |
-| **Command-line** | `./gtlogs-generator.py <zd> <jira>` | Quick generation, scripting, or repeated use |
-| **Force Interactive** | `./gtlogs-generator.py -i` | Explicitly run interactive mode |
+| **Interactive** | `./gtlogs-helper.py` | Choose between upload/download with guided prompts |
+| **Upload (CLI)** | `./gtlogs-helper.py <zd> [jira]` | Quick upload/generation |
+| **Download (CLI)** | `./gtlogs-helper.py --download <path>` | Quick download |
+| **Force Interactive** | `./gtlogs-helper.py -i` | Explicitly run interactive mode |
 
 ### Complete Usage Options
 
 ```bash
-# 1. INTERACTIVE MODE (Easiest)
-./gtlogs-generator.py                    # Launch interactive mode
-./gtlogs-generator.py -i                 # Force interactive mode
+# 1. INTERACTIVE MODE (Easiest - Choose Upload or Download)
+./gtlogs-helper.py                       # Launch interactive mode with mode selection
+./gtlogs-helper.py -i                    # Force interactive mode
 
-# 2. ZD-ONLY (no Jira - for Redis Cloud without Engineering)
-./gtlogs-generator.py 145980                                    # Templated output
-./gtlogs-generator.py 145980 -f /path/to/package.tar.gz        # With file path
+# 2. UPLOAD MODE - ZD-ONLY (no Jira)
+./gtlogs-helper.py 145980                                       # Templated output
+./gtlogs-helper.py 145980 -f /path/to/package.tar.gz           # With file path
+./gtlogs-helper.py 145980 -f /path/to/package.tar.gz --execute # Auto-upload
 
-# 3. ZD + JIRA (Engineering escalation)
-./gtlogs-generator.py 145980 RED-172041                         # Templated output
-./gtlogs-generator.py 145980 RED-172041 -f /path/to/package.tar.gz  # With file path
+# 3. UPLOAD MODE - ZD + JIRA (Engineering escalation)
+./gtlogs-helper.py 145980 RED-172041                            # Templated output
+./gtlogs-helper.py 145980 RED-172041 -f /path/to/package.tar.gz # With file path
+./gtlogs-helper.py 145980 RED-172041 -f /path/to/pkg.tar.gz -e  # Auto-upload
 
-# 4. WITH CUSTOM AWS PROFILE (overrides default)
-./gtlogs-generator.py 145980 -p my-profile                      # ZD-only
-./gtlogs-generator.py 145980 RED-172041 -p my-profile          # ZD + Jira
+# 4. DOWNLOAD MODE
+./gtlogs-helper.py --download s3://gt-logs/zendesk-tickets/ZD-145980/file.tar.gz
+./gtlogs-helper.py --download ZD-145980                         # List files
+./gtlogs-helper.py --download ZD-145980 --output ~/Downloads/   # Custom output dir
+./gtlogs-helper.py -d ZD-145980-RED-172041                     # Download from Jira path
 
-# 5. EXECUTE UPLOAD AUTOMATICALLY (with authentication handling)
-./gtlogs-generator.py 145980 -f /path/to/file.tar.gz --execute              # ZD-only
-./gtlogs-generator.py 145980 RED-172041 -f /path/to/file.tar.gz --execute  # ZD + Jira
+# 5. WITH CUSTOM AWS PROFILE
+./gtlogs-helper.py 145980 -p my-profile                         # Upload with profile
+./gtlogs-helper.py --download ZD-145980 -p my-profile          # Download with profile
 
 # 6. CONFIGURATION MANAGEMENT
-./gtlogs-generator.py --set-profile gt-logs    # Set default AWS profile
-./gtlogs-generator.py --show-config            # Show current config
+./gtlogs-helper.py --set-profile gt-logs    # Set default AWS profile
+./gtlogs-helper.py --show-config            # Show current config
 
-# 7. HELP
-./gtlogs-generator.py -h                       # Show help message
+# 7. VERSION & HELP
+./gtlogs-helper.py --version                # Show version and check for updates
+./gtlogs-helper.py -h                       # Show help message
 ```
 
 ## Command Reference
@@ -441,23 +596,26 @@ aws s3 cp /path/to/rs_support_pkg.tar.gz s3://gt-logs/exa-to-gt/ZD-148901-RED-17
 
 | Mode | Command | Description |
 |------|---------|-------------|
-| **Interactive** | `./gtlogs-generator.py` | Guided prompts (recommended for first-time users) |
-| **Command-line** | `./gtlogs-generator.py <zd> <jira>` | Quick generation with arguments |
-| **Force Interactive** | `./gtlogs-generator.py -i` | Explicitly run interactive mode |
+| **Interactive** | `./gtlogs-helper.py` | Choose upload/download with guided prompts |
+| **Upload (CLI)** | `./gtlogs-helper.py <zd> [jira]` | Quick upload with arguments |
+| **Download (CLI)** | `./gtlogs-helper.py --download <path>` | Quick download from S3 |
+| **Force Interactive** | `./gtlogs-helper.py -i` | Explicitly run interactive mode |
 
-### Positional Arguments (Command-line Mode)
+### Positional Arguments (Upload Mode)
 
 - `zendesk_id` - Zendesk ticket ID (e.g., `145980` or `ZD-145980`)
-- `jira_id` - Jira ticket ID (e.g., `RED-172041` or `MOD-12345`)
+- `jira_id` - Jira ticket ID (optional, e.g., `RED-172041` or `MOD-12345`)
 
 ### Optional Arguments
 
 | Flag | Description | Example |
 |------|-------------|---------|
 | `-i`, `--interactive` | Run in interactive mode | `-i` |
-| `-f`, `--file` | Path to support package file | `-f /path/to/package.tar.gz` |
+| `-f`, `--file` | Path to support package file (upload) | `-f /path/to/package.tar.gz` |
 | `-p`, `--profile` | AWS profile to use (overrides default) | `-p my-aws-profile` |
-| `-e`, `--execute` | Execute S3 upload with automatic authentication | `--execute` |
+| `-e`, `--execute` | Execute S3 upload with automatic auth | `--execute` |
+| `-d`, `--download` | Download from S3 (path or ticket ID) | `--download ZD-145980` |
+| `-o`, `--output` | Output directory for downloads | `--output ~/Downloads/` |
 | `--set-profile` | Set default AWS profile | `--set-profile gt-logs` |
 | `--show-config` | Show current configuration | `--show-config` |
 | `-v`, `--version` | Display version and check for updates | `-v` or `--version` |
@@ -479,10 +637,10 @@ The tool stores configuration and history in your home directory:
 
 ```bash
 # View current configuration
-./gtlogs-generator.py --show-config
+./gtlogs-helper.py --show-config
 
 # Set default AWS profile
-./gtlogs-generator.py --set-profile redis-support
+./gtlogs-helper.py --set-profile redis-support
 
 # View history file
 cat ~/.gtlogs-history.json
@@ -526,19 +684,19 @@ You can manually check for updates at any time:
 
 ```bash
 # Check version and updates
-./gtlogs-generator.py -v
+./gtlogs-helper.py -v
 # or
-./gtlogs-generator.py --version
+./gtlogs-helper.py --version
 
 # Or during interactive mode, press Ctrl+U at any prompt
-./gtlogs-generator.py
+./gtlogs-helper.py
 # (Press Ctrl+U during any input prompt)
 ```
 
 **Update process:**
 
 1. Script downloads the latest release from GitHub (5-second timeout)
-2. Creates backup of current version: `gtlogs-generator.py.backup`
+2. Creates backup of current version: `gtlogs-helper.py.backup`
 3. Downloads new version to temporary file
 4. Replaces current script with new version
 5. Sets executable permissions automatically
@@ -564,7 +722,7 @@ If you need to revert to a previous version:
 
 ```bash
 # Your previous version is saved as a backup
-mv gtlogs-generator.py.backup gtlogs-generator.py
+mv gtlogs-helper.py.backup gtlogs-generator.py
 chmod +x gtlogs-generator.py
 ```
 
@@ -591,12 +749,12 @@ The tool performs strict validation on all inputs to ensure data integrity:
 
 ```bash
 # Valid
-./gtlogs-generator.py 145980 RED-172041        ✓
-./gtlogs-generator.py ZD-145980 RED-172041     ✓
+./gtlogs-helper.py 145980 RED-172041        ✓
+./gtlogs-helper.py ZD-145980 RED-172041     ✓
 
 # Invalid
-./gtlogs-generator.py 145980abc RED-172041     ✗ Error: must be numerical only
-./gtlogs-generator.py ZD-abc RED-172041        ✗ Error: must be numerical only
+./gtlogs-helper.py 145980abc RED-172041     ✗ Error: must be numerical only
+./gtlogs-helper.py ZD-abc RED-172041        ✗ Error: must be numerical only
 ```
 
 ### Jira ID Validation
@@ -615,14 +773,14 @@ The tool performs strict validation on all inputs to ensure data integrity:
 
 ```bash
 # Valid
-./gtlogs-generator.py 145980 RED-172041        ✓
-./gtlogs-generator.py 145980 MOD-12345         ✓
-./gtlogs-generator.py 145980 RED172041         ✓ (auto-formats to RED-172041)
+./gtlogs-helper.py 145980 RED-172041        ✓
+./gtlogs-helper.py 145980 MOD-12345         ✓
+./gtlogs-helper.py 145980 RED172041         ✓ (auto-formats to RED-172041)
 
 # Invalid
-./gtlogs-generator.py 145980 RED-172041abc     ✗ Error: numerical suffix required
-./gtlogs-generator.py 145980 ABC-12345         ✗ Error: must be RED-# or MOD-#
-./gtlogs-generator.py 145980 172041            ✗ Error: must include prefix
+./gtlogs-helper.py 145980 RED-172041abc     ✗ Error: numerical suffix required
+./gtlogs-helper.py 145980 ABC-12345         ✗ Error: must be RED-# or MOD-#
+./gtlogs-helper.py 145980 172041            ✗ Error: must include prefix
 ```
 
 ### File Path Validation
@@ -636,12 +794,12 @@ The tool performs strict validation on all inputs to ensure data integrity:
 
 ```bash
 # Valid
-./gtlogs-generator.py 145980 RED-172041 -f /path/to/existing/file.tar.gz     ✓
-./gtlogs-generator.py 145980 RED-172041 -f ~/Downloads/package.tar.gz        ✓
+./gtlogs-helper.py 145980 RED-172041 -f /path/to/existing/file.tar.gz     ✓
+./gtlogs-helper.py 145980 RED-172041 -f ~/Downloads/package.tar.gz        ✓
 
 # Invalid
-./gtlogs-generator.py 145980 RED-172041 -f /nonexistent/file.tar.gz          ✗ Error: File does not exist
-./gtlogs-generator.py 145980 RED-172041 -f /path/to/directory                ✗ Error: Path is not a file
+./gtlogs-helper.py 145980 RED-172041 -f /nonexistent/file.tar.gz          ✗ Error: File does not exist
+./gtlogs-helper.py 145980 RED-172041 -f /path/to/directory                ✗ Error: Path is not a file
 ```
 
 ### Interactive Mode Validation
@@ -674,7 +832,7 @@ In interactive mode, the tool validates inputs in real-time and allows you to re
 
 ```bash
 # 1. Run the interactive tool
-./gtlogs-generator.py
+./gtlogs-helper.py
 
 # 2. Follow the prompts:
 #    - Enter Zendesk ID: 145980
@@ -695,10 +853,10 @@ In interactive mode, the tool validates inputs in real-time and allows you to re
 
 ```bash
 # 1. Set your default AWS profile (one-time setup)
-./gtlogs-generator.py --set-profile gt-logs
+./gtlogs-helper.py --set-profile gt-logs
 
 # 2. Generate and execute the upload in one command
-./gtlogs-generator.py 145980 RED-172041 -f ~/Downloads/support_package.tar.gz --execute
+./gtlogs-helper.py 145980 RED-172041 -f ~/Downloads/support_package.tar.gz --execute
 
 # 3. Tool automatically:
 #    - Checks authentication
@@ -713,13 +871,13 @@ In interactive mode, the tool validates inputs in real-time and allows you to re
 
 ```bash
 # 1. Set your default AWS profile (one-time setup)
-./gtlogs-generator.py --set-profile gt-logs
+./gtlogs-helper.py --set-profile gt-logs
 
 # 2. Authenticate with AWS SSO (if not already authenticated)
 aws sso login --profile gt-logs
 
 # 3. Generate the command with your specific ticket details
-./gtlogs-generator.py 145980 RED-172041 -f ~/Downloads/support_package.tar.gz
+./gtlogs-helper.py 145980 RED-172041 -f ~/Downloads/support_package.tar.gz
 
 # 4. Copy the generated AWS CLI command and run it manually
 # aws s3 cp ~/Downloads/support_package.tar.gz s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/support_package.tar.gz --profile gt-logs
@@ -736,27 +894,27 @@ The tool performs strict validation and provides clear error messages. **All val
 
 ```bash
 # Invalid Zendesk ID (non-numerical)
-./gtlogs-generator.py 145980abc RED-172041
+./gtlogs-helper.py 145980abc RED-172041
 # ❌ Error: Invalid Zendesk ID: must be numerical only (e.g., 145980 or ZD-145980)
 
 # Invalid Jira format (missing prefix)
-./gtlogs-generator.py 145980 12345
+./gtlogs-helper.py 145980 12345
 # ❌ Error: Jira ID must include prefix (RED- or MOD-)
 
 # Invalid Jira prefix
-./gtlogs-generator.py 145980 ABC-12345
+./gtlogs-helper.py 145980 ABC-12345
 # ❌ Error: Invalid Jira ID: must be in format RED-# or MOD-# with numerical suffix
 
 # Invalid Jira suffix (non-numerical)
-./gtlogs-generator.py 145980 RED-172041abc
+./gtlogs-helper.py 145980 RED-172041abc
 # ❌ Error: Invalid Jira ID: must be in format RED-# or MOD-# with numerical suffix
 
 # File doesn't exist
-./gtlogs-generator.py 145980 RED-172041 -f /nonexistent/file.tar.gz
+./gtlogs-helper.py 145980 RED-172041 -f /nonexistent/file.tar.gz
 # ❌ Error: File does not exist: /nonexistent/file.tar.gz
 
 # Path is a directory, not a file
-./gtlogs-generator.py 145980 RED-172041 -f /Users/username/Downloads
+./gtlogs-helper.py 145980 RED-172041 -f /Users/username/Downloads
 # ❌ Error: Path is not a file: /Users/username/Downloads
 ```
 
@@ -859,13 +1017,13 @@ The script includes input validation and error handling. Test with various input
 
 ```bash
 # Test different ID formats
-./gtlogs-generator.py 145980 RED-172041
-./gtlogs-generator.py ZD-145980 RED172041
-./gtlogs-generator.py 145980 MOD-12345
+./gtlogs-helper.py 145980 RED-172041
+./gtlogs-helper.py ZD-145980 RED172041
+./gtlogs-helper.py 145980 MOD-12345
 
 # Test with file paths
-./gtlogs-generator.py 145980 RED-172041 -f test.tar.gz
-./gtlogs-generator.py 145980 RED-172041 -f /path/to/file.tar.gz -p my-profile
+./gtlogs-helper.py 145980 RED-172041 -f test.tar.gz
+./gtlogs-helper.py 145980 RED-172041 -f /path/to/file.tar.gz -p my-profile
 ```
 
 ## Troubleshooting

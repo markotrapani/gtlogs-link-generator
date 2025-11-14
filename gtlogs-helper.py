@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-GT Logs Link Generator
+GT Logs Helper
+Uploads and downloads Redis Support packages to/from S3 buckets.
 Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 """
 
-VERSION = "1.0.8"
+VERSION = "1.1.0"
 
 import argparse
 import configparser
@@ -59,7 +60,7 @@ def check_for_updates(timeout=5):
         or None if check fails
     """
     try:
-        url = "https://api.github.com/repos/markotrapani/gtlogs-link-generator/releases/latest"
+        url = "https://api.github.com/repos/markotrapani/gtlogs-helper/releases/latest"
         req = urllib.request.Request(url)
         req.add_header('Accept', 'application/vnd.github.v3+json')
 
@@ -79,7 +80,7 @@ def check_for_updates(timeout=5):
             release_notes = [line.strip() for line in lines[:3] if line.strip()]
 
         # Get download URL for the Python script
-        download_url = f"https://raw.githubusercontent.com/markotrapani/gtlogs-link-generator/{data['tag_name']}/gtlogs-generator.py"
+        download_url = f"https://raw.githubusercontent.com/markotrapani/gtlogs-helper/{data['tag_name']}/gtlogs-helper.py"
 
         return {
             'available': update_available,
@@ -204,8 +205,8 @@ def prompt_for_update(update_info):
         return False
 
 
-class GTLogsGenerator:
-    """Generates GT Logs S3 URLs and AWS CLI commands."""
+class GTLogsHelper:
+    """Helps with GT Logs S3 uploads, downloads, and URL generation."""
 
     BUCKET_BASE = "s3://gt-logs/exa-to-gt"
     CONFIG_FILE = os.path.expanduser("~/.gtlogs-config.ini")
@@ -494,6 +495,170 @@ class GTLogsGenerator:
             print(f"❌ Error during upload: {e}\n")
             return False
 
+    # ========== DOWNLOAD FUNCTIONALITY ==========
+
+    @staticmethod
+    def parse_s3_path(s3_path):
+        """Parse an S3 path or partial path to extract bucket and key.
+
+        Args:
+            s3_path: Full S3 path or partial path (e.g., ZD-145980)
+
+        Returns:
+            tuple: (bucket, key) or (None, None) if invalid
+        """
+        # Handle full S3 paths
+        if s3_path.startswith("s3://"):
+            parts = s3_path[5:].split("/", 1)
+            if len(parts) >= 1:
+                bucket = parts[0]
+                key = parts[1] if len(parts) > 1 else ""
+                return bucket, key
+
+        # Handle partial paths (ZD-only or ZD+Jira)
+        # Try to validate as Zendesk ID
+        try:
+            zd_id = GTLogsHelper.validate_zendesk_id(s3_path)
+            # Check if it contains Jira ID too
+            if "-RED-" in s3_path.upper() or "-MOD-" in s3_path.upper():
+                # Extract Jira part
+                jira_match = re.search(r'(RED|MOD)-\d+', s3_path.upper())
+                if jira_match:
+                    jira_id = jira_match.group()
+                    # ZD+Jira path
+                    return "gt-logs", f"exa-to-gt/{zd_id}-{jira_id}/"
+            # ZD-only path
+            return "gt-logs", f"zendesk-tickets/{zd_id}/"
+        except:
+            pass
+
+        # Try to parse as direct bucket/key format
+        if "/" in s3_path and not s3_path.startswith("/"):
+            parts = s3_path.split("/", 1)
+            return parts[0], parts[1]
+
+        return None, None
+
+    def list_s3_files(self, bucket, prefix, aws_profile="gt-logs"):
+        """List files in an S3 bucket with given prefix.
+
+        Args:
+            bucket: S3 bucket name
+            prefix: S3 key prefix
+            aws_profile: AWS profile to use
+
+        Returns:
+            list: List of file keys or empty list if error
+        """
+        cmd = [
+            "aws", "s3", "ls",
+            f"s3://{bucket}/{prefix}",
+            "--profile", aws_profile,
+            "--recursive"
+        ]
+
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            if result.returncode != 0:
+                print(f"❌ Error listing files: {result.stderr}")
+                return []
+
+            # Parse the output to get file paths
+            files = []
+            for line in result.stdout.strip().split('\n'):
+                if line:
+                    # AWS S3 ls format: "2024-01-15 10:30:45  12345678  path/to/file.tar.gz"
+                    parts = line.split(None, 3)
+                    if len(parts) >= 4:
+                        file_key = parts[3]
+                        files.append(file_key)
+
+            return files
+
+        except subprocess.TimeoutExpired:
+            print("❌ Timeout while listing S3 files")
+            return []
+        except Exception as e:
+            print(f"❌ Error listing files: {e}")
+            return []
+
+    def download_from_s3(self, bucket, key, local_path=None, aws_profile="gt-logs"):
+        """Download a file from S3.
+
+        Args:
+            bucket: S3 bucket name
+            key: S3 object key
+            local_path: Local destination path (optional, defaults to current directory)
+            aws_profile: AWS profile to use
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if local_path is None:
+            # Use current directory with the filename from the key
+            local_path = os.path.basename(key)
+
+        # Ensure local directory exists
+        local_dir = os.path.dirname(local_path)
+        if local_dir and not os.path.exists(local_dir):
+            os.makedirs(local_dir, exist_ok=True)
+
+        # Build AWS CLI command
+        cmd = f'aws s3 cp "s3://{bucket}/{key}" "{local_path}" --profile {aws_profile}'
+
+        try:
+            print(f"📥 Downloading from S3...")
+            print(f"   Source: s3://{bucket}/{key}")
+            print(f"   Destination: {local_path}")
+            print(f"   Running: {cmd}\n")
+
+            result = subprocess.run(
+                cmd,
+                shell=True,
+                check=False
+            )
+
+            if result.returncode == 0:
+                print(f"\n✅ Download successful! File saved to: {local_path}\n")
+                return True
+            else:
+                print(f"\n❌ Download failed with exit code {result.returncode}\n")
+                return False
+
+        except Exception as e:
+            print(f"❌ Error during download: {e}\n")
+            return False
+
+    def generate_download_command(self, s3_path, local_path=None, aws_profile="gt-logs"):
+        """Generate AWS CLI download command.
+
+        Args:
+            s3_path: S3 path to download from
+            local_path: Local destination path (optional)
+            aws_profile: AWS profile to use
+
+        Returns:
+            str: AWS CLI command or None if invalid path
+        """
+        bucket, key = self.parse_s3_path(s3_path)
+        if not bucket or not key:
+            return None
+
+        if local_path is None:
+            local_path = "."
+
+        # Check if downloading a directory (ends with /)
+        if key.endswith("/"):
+            return f'aws s3 sync "s3://{bucket}/{key}" "{local_path}" --profile {aws_profile}'
+        else:
+            return f'aws s3 cp "s3://{bucket}/{key}" "{local_path}" --profile {aws_profile}'
+
 
 def getch_timeout(timeout=None, fd=None, restore_settings=True):
     """Read a single character from stdin without waiting for Enter.
@@ -709,18 +874,44 @@ def check_exit_input(user_input):
 
 
 def interactive_mode():
-    """Run the generator in interactive mode."""
-    generator = GTLogsGenerator()
-
+    """Run the helper in interactive mode with mode selection."""
     print("\n" + "="*70)
-    print(f"GT Logs Link Generator v{VERSION} - Interactive Mode")
+    print(f"GT Logs Helper v{VERSION} - Interactive Mode")
     print("="*70)
-    print("\nGenerate S3 URLs and AWS CLI commands for Redis Support packages")
+    print("\nUpload and download Redis Support packages to/from S3")
     if IMMEDIATE_INPUT_AVAILABLE:
         print("Press ESC to exit, Ctrl+C, or type 'exit'/'q' at any prompt")
         print("Use UP/DOWN arrows for input history, Ctrl+U to check for updates\n")
     else:
         print("Press Ctrl+C to exit, or type 'exit' or 'q' at any prompt\n")
+
+    # Mode selection
+    print("Select operation mode:")
+    print("  1. Upload to S3 (generate links and upload files)")
+    print("  2. Download from S3 (retrieve files from existing paths)")
+    print()
+
+    while True:
+        mode_input = input_with_esc_detection("Enter choice (1 or 2): ").strip()
+        check_exit_input(mode_input)
+
+        if mode_input == "1":
+            interactive_upload_mode()
+            break
+        elif mode_input == "2":
+            interactive_download_mode()
+            break
+        else:
+            print("❌ Please enter 1 or 2\n")
+
+
+def interactive_upload_mode():
+    """Run the upload functionality in interactive mode."""
+    generator = GTLogsHelper()
+
+    print("\n" + "-"*50)
+    print("Upload Mode - Generate S3 URLs and upload files")
+    print("-"*50 + "\n")
 
     try:
         # Get Zendesk ID
@@ -913,27 +1104,210 @@ def interactive_mode():
         return 1
 
 
+def interactive_download_mode():
+    """Run the download functionality in interactive mode."""
+    helper = GTLogsHelper()
+
+    print("\n" + "-"*50)
+    print("Download Mode - Retrieve files from S3")
+    print("-"*50 + "\n")
+
+    try:
+        # Get S3 path or identifier
+        print("Enter S3 path to download from.")
+        print("Examples:")
+        print("  - Full path: s3://gt-logs/zendesk-tickets/ZD-145980/file.tar.gz")
+        print("  - Ticket ID: ZD-145980 (will list available files)")
+        print("  - Ticket + Jira: ZD-145980-RED-172041")
+        print()
+
+        while True:
+            s3_history = helper.get_history('s3_path')
+            s3_input = input_with_esc_detection("Enter S3 path or ticket ID: ", s3_history).strip()
+            check_exit_input(s3_input)
+
+            if not s3_input:
+                print("❌ S3 path or ticket ID is required\n")
+                continue
+
+            # Parse the S3 path
+            bucket, key = helper.parse_s3_path(s3_input)
+            if not bucket or not key:
+                print(f"❌ Invalid S3 path or ticket ID: {s3_input}\n")
+                continue
+
+            helper.add_to_history('s3_path', s3_input)
+            print(f"\n✓ Parsed: s3://{bucket}/{key}")
+            break
+
+        # Get AWS profile
+        default_profile = helper.get_default_aws_profile()
+        if default_profile:
+            profile_prompt = f"Enter AWS profile (press Enter for default '{default_profile}'): "
+        else:
+            profile_prompt = "Enter AWS profile (default: gt-logs): "
+
+        profile_history = helper.get_history('aws_profile')
+        aws_profile_input = input_with_esc_detection(profile_prompt, profile_history).strip()
+        check_exit_input(aws_profile_input)
+
+        if aws_profile_input:
+            aws_profile = aws_profile_input
+            helper.add_to_history('aws_profile', aws_profile)
+        elif default_profile:
+            aws_profile = default_profile
+            print(f"\n✓ Using default profile: {default_profile}")
+        else:
+            aws_profile = "gt-logs"
+            print(f"\n✓ Using default profile: gt-logs")
+
+        # Check authentication
+        print(f"\nChecking AWS authentication...")
+        is_authenticated = helper.check_aws_authentication(aws_profile)
+
+        if not is_authenticated:
+            print(f"⚠️  AWS profile '{aws_profile}' is not authenticated")
+            if not helper.aws_sso_login(aws_profile):
+                print("❌ Cannot proceed without authentication\n")
+                return 1
+        else:
+            print(f"✓ AWS profile '{aws_profile}' is authenticated")
+
+        # If the key is a directory (ends with /), list files
+        if key.endswith("/"):
+            print(f"\n🔍 Listing files in s3://{bucket}/{key}...\n")
+            files = helper.list_s3_files(bucket, key, aws_profile)
+
+            if not files:
+                print(f"❌ No files found in s3://{bucket}/{key}")
+                return 1
+
+            print(f"Found {len(files)} file(s):")
+            for i, file in enumerate(files, 1):
+                print(f"  {i}. {file}")
+
+            # Ask which file(s) to download
+            print("\nSelect files to download:")
+            print("  - Enter file number(s) separated by commas (e.g., 1,3,5)")
+            print("  - Enter 'all' to download all files")
+            print("  - Press Enter to cancel")
+            print()
+
+            selection = input_with_esc_detection("Your selection: ").strip()
+            check_exit_input(selection)
+
+            if not selection:
+                print("\nDownload cancelled\n")
+                return 0
+
+            files_to_download = []
+            if selection.lower() == 'all':
+                files_to_download = files
+            else:
+                try:
+                    indices = [int(x.strip()) - 1 for x in selection.split(',')]
+                    files_to_download = [files[i] for i in indices if 0 <= i < len(files)]
+                except (ValueError, IndexError):
+                    print("❌ Invalid selection\n")
+                    return 1
+
+            if not files_to_download:
+                print("❌ No valid files selected\n")
+                return 1
+
+            # Get local directory
+            print("\nWhere to save the files?")
+            local_dir = input_with_esc_detection("Local directory (press Enter for current directory): ").strip()
+            check_exit_input(local_dir)
+
+            if not local_dir:
+                local_dir = "."
+
+            # Create directory if it doesn't exist
+            if local_dir != "." and not os.path.exists(local_dir):
+                os.makedirs(local_dir, exist_ok=True)
+                print(f"✓ Created directory: {local_dir}")
+
+            # Download selected files
+            print(f"\n📥 Downloading {len(files_to_download)} file(s)...\n")
+            success_count = 0
+            for file in files_to_download:
+                local_path = os.path.join(local_dir, os.path.basename(file))
+                if helper.download_from_s3(bucket, file, local_path, aws_profile):
+                    success_count += 1
+
+            print(f"\n✅ Downloaded {success_count}/{len(files_to_download)} file(s) successfully")
+
+        else:
+            # Single file download
+            print(f"\n📥 Downloading s3://{bucket}/{key}...")
+
+            # Get local path
+            default_name = os.path.basename(key) if key else "download"
+            local_path = input_with_esc_detection(f"Save as (press Enter for '{default_name}'): ").strip()
+            check_exit_input(local_path)
+
+            if not local_path:
+                local_path = default_name
+
+            # Download the file
+            if helper.download_from_s3(bucket, key, local_path, aws_profile):
+                print(f"✅ Successfully downloaded to: {local_path}")
+            else:
+                print("❌ Download failed")
+                return 1
+
+        # Save history
+        helper._save_history()
+        return 0
+
+    except UserExitException:
+        print("👋 Exiting...\n")
+        helper._save_history()
+        return 0
+    except KeyboardInterrupt:
+        print("\n👋 Exiting...\n")
+        helper._save_history()
+        return 0
+    except Exception as e:
+        print(f"\n❌ Error: {e}\n", file=sys.stderr)
+        helper._save_history()
+        return 1
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
-        description='Generate GT Logs S3 URLs and AWS CLI commands for Redis Support packages',
+        description='GT Logs Helper - Upload and download Redis Support packages to/from S3',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Interactive mode (no arguments)
+  # Interactive mode (no arguments) - Choose between upload/download
   %(prog)s
 
+  # UPLOAD MODE:
   # Generate S3 path only
   %(prog)s 145980 RED-172041
 
   # Generate full AWS CLI command with file path
   %(prog)s 145980 RED-172041 -f /path/to/support_package.tar.gz
 
-  # Execute the upload automatically (checks auth and runs command)
+  # Execute the upload automatically
   %(prog)s 145980 RED-172041 -f /path/to/support_package.tar.gz --execute
 
+  # DOWNLOAD MODE:
+  # Download from S3 path
+  %(prog)s --download s3://gt-logs/zendesk-tickets/ZD-145980/file.tar.gz
+
+  # Download using ticket ID (lists files)
+  %(prog)s --download ZD-145980
+
+  # Download with custom output path
+  %(prog)s --download ZD-145980 --output ~/Downloads/
+
+  # CONFIG:
   # Use specific AWS profile
-  %(prog)s 145980 RED-172041 -f /path/to/support_package.tar.gz -p my-aws-profile
+  %(prog)s 145980 RED-172041 -p my-aws-profile
 
   # Set default AWS profile
   %(prog)s --set-profile my-aws-profile
@@ -959,23 +1333,29 @@ Examples:
     parser.add_argument('-e', '--execute', action='store_true',
                        help='Execute the AWS S3 upload command (requires non-templated file path)')
 
+    # Download mode arguments
+    parser.add_argument('-d', '--download', dest='download_path',
+                       help='Download from S3 (provide S3 path or ticket ID)')
+    parser.add_argument('-o', '--output', dest='output_path',
+                       help='Output directory for downloads (default: current directory)')
+
     args = parser.parse_args()
 
-    generator = GTLogsGenerator()
+    helper = GTLogsHelper()
 
     # Handle config commands
     if args.set_profile:
-        generator._save_config(args.set_profile)
+        helper._save_config(args.set_profile)
         return 0
 
     if args.show_config:
-        default_profile = generator.get_default_aws_profile()
-        print(f"Configuration file: {generator.CONFIG_FILE}")
+        default_profile = helper.get_default_aws_profile()
+        print(f"Configuration file: {helper.CONFIG_FILE}")
         print(f"Default AWS profile: {default_profile if default_profile else '(not set)'}")
         return 0
 
     if args.version:
-        print(f"GT Logs Link Generator v{VERSION}")
+        print(f"GT Logs Helper v{VERSION}")
         print("\n🔍 Checking for updates...")
         update_info = check_for_updates()
         if update_info and update_info['available']:
@@ -991,8 +1371,51 @@ Examples:
             print("⚠️  Could not check for updates (offline or API error)\n")
         return 0
 
+    # Handle download mode
+    if args.download_path:
+        # Parse the S3 path
+        bucket, key = helper.parse_s3_path(args.download_path)
+        if not bucket or not key:
+            print(f"❌ Invalid S3 path or ticket ID: {args.download_path}")
+            return 1
+
+        # Determine AWS profile
+        aws_profile = args.aws_profile or helper.get_default_aws_profile() or "gt-logs"
+
+        # Check authentication
+        print(f"Checking AWS authentication...")
+        if not helper.check_aws_authentication(aws_profile):
+            print(f"⚠️  AWS profile '{aws_profile}' is not authenticated")
+            if not helper.aws_sso_login(aws_profile):
+                print("❌ Cannot proceed without authentication")
+                return 1
+
+        # Determine output path
+        output_path = args.output_path or "."
+
+        # If downloading a directory, list and prompt
+        if key.endswith("/"):
+            print(f"\n🔍 Listing files in s3://{bucket}/{key}...\n")
+            files = helper.list_s3_files(bucket, key, aws_profile)
+            if not files:
+                print(f"❌ No files found")
+                return 1
+
+            print(f"Found {len(files)} file(s). Downloading all...")
+            for file in files:
+                local_path = os.path.join(output_path, os.path.basename(file))
+                helper.download_from_s3(bucket, file, local_path, aws_profile)
+        else:
+            # Single file download
+            local_path = os.path.join(output_path, os.path.basename(key))
+            if helper.download_from_s3(bucket, key, local_path, aws_profile):
+                print(f"✅ Downloaded to: {local_path}")
+            else:
+                return 1
+        return 0
+
     # Interactive mode if no arguments or -i flag
-    if args.interactive or (not args.zendesk_id and not args.jira_id):
+    if args.interactive or (not args.zendesk_id and not args.jira_id and not args.download_path):
         # Check for updates before starting interactive mode
         print("🔍 Checking for updates...")
         update_info = check_for_updates()
@@ -1007,14 +1430,14 @@ Examples:
 
         return interactive_mode()
 
-    # Require at least Zendesk ID for generation (Jira is now optional)
+    # Require at least Zendesk ID for upload mode (Jira is optional)
     if not args.zendesk_id:
         parser.print_help()
         return 1
 
     try:
-        # Generate outputs
-        cmd, s3_path = generator.generate_aws_command(
+        # Generate outputs for upload mode
+        cmd, s3_path = helper.generate_aws_command(
             args.zendesk_id,
             args.jira_id,
             args.support_package,
@@ -1023,7 +1446,7 @@ Examples:
 
         # Display results
         print("\n" + "="*70)
-        print("GT Logs Link Generator")
+        print("GT Logs Helper")
         print("="*70)
         print(f"\nS3 Path:\n  {s3_path}")
         print(f"\nAWS CLI Command:\n  {cmd}")
@@ -1033,7 +1456,7 @@ Examples:
         if not args.support_package:
             print("\nℹ️  Tip: Use -f to specify the support package file path")
 
-        default_profile = generator.get_default_aws_profile()
+        default_profile = helper.get_default_aws_profile()
         used_profile = args.aws_profile or default_profile
 
         if not args.aws_profile and not default_profile:
@@ -1054,19 +1477,19 @@ Examples:
             print()
 
             # Check authentication
-            is_authenticated = generator.check_aws_authentication(used_profile)
+            is_authenticated = helper.check_aws_authentication(used_profile)
 
             if not is_authenticated:
                 print(f"⚠️  AWS profile '{used_profile}' is not authenticated")
                 # Automatically run AWS SSO login
-                if not generator.aws_sso_login(used_profile):
+                if not helper.aws_sso_login(used_profile):
                     print("❌ Cannot proceed without authentication\n")
                     return 1
             else:
                 print(f"✓ AWS profile '{used_profile}' is already authenticated\n")
 
             # Execute the upload
-            success = generator.execute_s3_upload(cmd)
+            success = helper.execute_s3_upload(cmd)
             return 0 if success else 1
 
         # Show AWS SSO login reminder (when not executing)
