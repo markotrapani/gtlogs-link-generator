@@ -5,7 +5,7 @@ Uploads and downloads Redis Support packages to/from S3 buckets.
 Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 """
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 import argparse
 import configparser
@@ -506,6 +506,70 @@ class GTLogsHelper:
             print(f"❌ Error during upload: {e}\n")
             return False
 
+    def execute_batch_upload(self, file_paths, zd_id, jira_id, aws_profile):
+        """Execute batch upload of multiple files to the same S3 destination.
+
+        Args:
+            file_paths: List of file paths to upload
+            zd_id: Zendesk ticket ID (formatted)
+            jira_id: Jira ticket ID (formatted, can be None)
+            aws_profile: AWS profile to use
+
+        Returns:
+            tuple: (success_count, failure_count, results)
+        """
+        total_files = len(file_paths)
+        success_count = 0
+        failure_count = 0
+        results = []
+
+        print(f"\n{'='*70}")
+        print(f"Batch Upload: {total_files} file(s)")
+        print(f"{'='*70}\n")
+
+        # Generate S3 path (same for all files)
+        s3_path = self.generate_s3_path(zd_id, jira_id)
+        print(f"S3 Destination: {s3_path}\n")
+
+        for i, file_path in enumerate(file_paths, 1):
+            filename = os.path.basename(file_path)
+            print(f"[{i}/{total_files}] Uploading: {filename}")
+            print(f"            From: {file_path}")
+
+            # Generate command for this specific file
+            cmd, _ = self.generate_aws_command(zd_id, jira_id, file_path, aws_profile)
+
+            # Execute upload
+            success = self.execute_s3_upload(cmd)
+
+            if success:
+                success_count += 1
+                results.append(('success', filename))
+            else:
+                failure_count += 1
+                results.append(('failure', filename))
+
+            # Add separator between uploads (except after last one)
+            if i < total_files:
+                print(f"{'-'*70}\n")
+
+        # Print summary
+        print(f"{'='*70}")
+        print(f"Batch Upload Summary")
+        print(f"{'='*70}")
+        print(f"✅ Successful: {success_count}/{total_files}")
+        print(f"❌ Failed: {failure_count}/{total_files}")
+
+        if failure_count > 0:
+            print(f"\nFailed files:")
+            for status, filename in results:
+                if status == 'failure':
+                    print(f"  - {filename}")
+
+        print(f"{'='*70}\n")
+
+        return success_count, failure_count, results
+
     # ========== DOWNLOAD FUNCTIONALITY ==========
 
     @staticmethod
@@ -960,31 +1024,60 @@ def interactive_upload_mode():
             except ValueError as e:
                 print(f"❌ {e}\n")
 
-        # Get support package path (optional)
+        # Get support package path(s) (optional)
+        package_paths = []
         while True:
             path_history = generator.get_history('file_path')
-            package_path = input_with_esc_detection("Enter support package path (optional, press Enter to skip): ", path_history).strip()
+            if not package_paths:
+                prompt = "Enter support package path(s) (comma-separated for multiple, press Enter to skip): "
+            else:
+                prompt = f"Add another file? (press Enter to continue with {len(package_paths)} file(s)): "
+
+            package_path = input_with_esc_detection(prompt, path_history).strip()
             check_exit_input(package_path)
+
             if not package_path:
-                package_path = None
-                print("\n✓ Will generate template command\n")
+                if not package_paths:
+                    print("\n✓ Will generate template command\n")
+                else:
+                    print(f"\n✓ Proceeding with {len(package_paths)} file(s)\n")
                 break
-            try:
-                validated_path = generator.validate_file_path(package_path)
-                print(f"\n✓ File found: {validated_path}\n")
-                # Add to history immediately after validation
-                generator.add_to_history('file_path', validated_path)
-                package_path = validated_path
+
+            # Split by comma for multiple paths
+            paths_to_validate = [p.strip() for p in package_path.split(',')]
+
+            for path in paths_to_validate:
+                if not path:
+                    continue
+                try:
+                    validated_path = generator.validate_file_path(path)
+                    if validated_path not in package_paths:  # Avoid duplicates
+                        package_paths.append(validated_path)
+                        print(f"✓ File {len(package_paths)}: {validated_path}")
+                        # Add to history immediately after validation
+                        generator.add_to_history('file_path', validated_path)
+                    else:
+                        print(f"⚠️  Skipping duplicate: {validated_path}")
+                except ValueError as e:
+                    print(f"❌ {e}")
+                    retry = input_with_esc_detection("Try again? (y/n): ").strip().lower()
+                    check_exit_input(retry)
+                    if retry not in ['y', 'yes']:
+                        if not package_paths:
+                            print("✓ Skipping file path, will generate template command\n")
+                        break
+                    print()
+                    break  # Break inner loop to retry the same input
+            else:
+                # If we processed all paths successfully, ask for more
+                continue
+
+            # If retry was 'n', break outer loop
+            if not package_paths:
                 break
-            except ValueError as e:
-                print(f"❌ {e}")
-                retry = input_with_esc_detection("Try again? (y/n): ").strip().lower()
-                check_exit_input(retry)
-                if retry not in ['y', 'yes']:
-                    package_path = None
-                    print("✓ Skipping file path, will generate template command\n")
-                    break
-                print()
+
+        # Convert to None if empty list for backward compatibility
+        package_path = package_paths if package_paths else None
 
         # Get AWS profile
         default_profile = generator.get_default_aws_profile()
@@ -1015,50 +1108,91 @@ def interactive_upload_mode():
             aws_profile = "gt-logs"
             print("\n✓ Using default profile: gt-logs\n")
 
-        # Generate the command
-        cmd, s3_path = generator.generate_aws_command(
-            zd_input,
-            jira_formatted,  # Can be None for ZD-only uploads
-            package_path,
-            aws_profile
-        )
-
-        # Display results
-        print("="*70)
-        print("Generated Output")
-        print("="*70)
-        print(f"\nS3 Path:\n  {s3_path}")
-        print(f"\nAWS CLI Command:\n  {cmd}")
-        print("\n" + "="*70)
-
-        # If we have a real file path (not templated), offer to execute
+        # Handle single vs multiple files
         if package_path:
-            print()
-            execute_now = input_with_esc_detection("Execute this command now? (Y/n): ").strip().lower()
-            check_exit_input(execute_now)
+            # We have file path(s)
+            if isinstance(package_path, list) and len(package_path) > 1:
+                # Multiple files - use batch upload
+                s3_path = generator.generate_s3_path(zd_formatted, jira_formatted)
 
-            # Default to 'yes' if user just presses Enter
-            if execute_now == '' or execute_now in ['y', 'yes']:
-                # Determine which profile to use
-                profile_to_use = aws_profile
+                # Display batch upload info
+                print("="*70)
+                print("Batch Upload Configuration")
+                print("="*70)
+                print(f"\nS3 Destination:\n  {s3_path}")
+                print(f"\nFiles to upload ({len(package_path)}):")
+                for i, fpath in enumerate(package_path, 1):
+                    print(f"  {i}. {os.path.basename(fpath)}")
+                print("\n" + "="*70)
 
-                # Check authentication (profile_to_use should never be None now)
-                is_authenticated = generator.check_aws_authentication(profile_to_use)
-
-                if not is_authenticated:
-                    print(f"\n⚠️  AWS profile '{profile_to_use}' is not authenticated")
-                    # Automatically run AWS SSO login
-                    if not generator.aws_sso_login(profile_to_use):
-                        print("❌ Cannot proceed without authentication\n")
-                        return 1
-                else:
-                    print(f"\n✓ AWS profile '{profile_to_use}' is already authenticated\n")
-
-                # Execute the upload
-                success = generator.execute_s3_upload(cmd)
-                return 0 if success else 1
-            else:
+                # Offer to execute
                 print()
+                execute_now = input_with_esc_detection("Execute batch upload now? (Y/n): ").strip().lower()
+                check_exit_input(execute_now)
+
+                # Default to 'yes' if user just presses Enter
+                if execute_now == '' or execute_now in ['y', 'yes']:
+                    # Check authentication
+                    is_authenticated = generator.check_aws_authentication(aws_profile)
+
+                    if not is_authenticated:
+                        print(f"\n⚠️  AWS profile '{aws_profile}' is not authenticated")
+                        # Automatically run AWS SSO login
+                        if not generator.aws_sso_login(aws_profile):
+                            print("❌ Cannot proceed without authentication\n")
+                            return 1
+                    else:
+                        print(f"\n✓ AWS profile '{aws_profile}' is already authenticated\n")
+
+                    # Execute batch upload
+                    success_count, failure_count, _ = generator.execute_batch_upload(
+                        package_path, zd_formatted, jira_formatted, aws_profile
+                    )
+                    return 0 if failure_count == 0 else 1
+                else:
+                    print()
+            else:
+                # Single file - use original logic
+                single_path = package_path[0] if isinstance(package_path, list) else package_path
+                cmd, s3_path = generator.generate_aws_command(
+                    zd_input,
+                    jira_formatted,  # Can be None for ZD-only uploads
+                    single_path,
+                    aws_profile
+                )
+
+                # Display results
+                print("="*70)
+                print("Generated Output")
+                print("="*70)
+                print(f"\nS3 Path:\n  {s3_path}")
+                print(f"\nAWS CLI Command:\n  {cmd}")
+                print("\n" + "="*70)
+
+                # Offer to execute
+                print()
+                execute_now = input_with_esc_detection("Execute this command now? (Y/n): ").strip().lower()
+                check_exit_input(execute_now)
+
+                # Default to 'yes' if user just presses Enter
+                if execute_now == '' or execute_now in ['y', 'yes']:
+                    # Check authentication
+                    is_authenticated = generator.check_aws_authentication(aws_profile)
+
+                    if not is_authenticated:
+                        print(f"\n⚠️  AWS profile '{aws_profile}' is not authenticated")
+                        # Automatically run AWS SSO login
+                        if not generator.aws_sso_login(aws_profile):
+                            print("❌ Cannot proceed without authentication\n")
+                            return 1
+                    else:
+                        print(f"\n✓ AWS profile '{aws_profile}' is already authenticated\n")
+
+                    # Execute the upload
+                    success = generator.execute_s3_upload(cmd)
+                    return 0 if success else 1
+                else:
+                    print()
         else:
             # Show AWS SSO login reminder if profile is specified (templated command)
             if aws_profile:
@@ -1297,17 +1431,17 @@ Examples:
   # Generate S3 path only
   %(prog)s 145980 RED-172041
 
-  # Generate full AWS CLI command with file path
-  %(prog)s 145980 RED-172041 -f /path/to/support_package.tar.gz
-
-  # Execute the upload automatically
+  # Upload single file
   %(prog)s 145980 RED-172041 -f /path/to/support_package.tar.gz --execute
+
+  # Batch upload multiple files
+  %(prog)s 145980 RED-172041 -f file1.tar.gz -f file2.tar.gz -f file3.tar.gz --execute
 
   # DOWNLOAD MODE:
   # Download from S3 path
   %(prog)s --download s3://gt-logs/zendesk-tickets/ZD-145980/file.tar.gz
 
-  # Download using ticket ID (lists files)
+  # Download using ticket ID (lists files, use 'a' to download all)
   %(prog)s --download ZD-145980
 
   # Download with custom output path
@@ -1326,8 +1460,8 @@ Examples:
                        help='Zendesk ticket ID (e.g., 145980 or ZD-145980)')
     parser.add_argument('jira_id', nargs='?',
                        help='Jira ticket ID (optional, e.g., RED-172041 or MOD-12345)')
-    parser.add_argument('-f', '--file', dest='support_package',
-                       help='Path to support package file (optional)')
+    parser.add_argument('-f', '--file', dest='support_package', action='append',
+                       help='Path to support package file (can be used multiple times for batch uploads)')
     parser.add_argument('-p', '--profile', dest='aws_profile',
                        help='AWS profile to use (overrides default)')
     parser.add_argument('--set-profile', dest='set_profile',
@@ -1444,74 +1578,148 @@ Examples:
         return 1
 
     try:
-        # Generate outputs for upload mode
-        cmd, s3_path = helper.generate_aws_command(
-            args.zendesk_id,
-            args.jira_id,
-            args.support_package,
-            args.aws_profile
-        )
-
-        # Display results
-        print("\n" + "="*70)
-        print("GT Logs Helper")
-        print("="*70)
-        print(f"\nS3 Path:\n  {s3_path}")
-        print(f"\nAWS CLI Command:\n  {cmd}")
-        print("\n" + "="*70)
-
-        # Show helpful info
-        if not args.support_package:
-            print("\nℹ️  Tip: Use -f to specify the support package file path")
-
         default_profile = helper.get_default_aws_profile()
         # Use fallback to gt-logs if no profile is specified
         used_profile = args.aws_profile or default_profile or "gt-logs"
 
-        if not args.aws_profile and not default_profile:
-            print("ℹ️  Tip: Set a default AWS profile with --set-profile")
-            print(f"ℹ️  Using fallback AWS profile: gt-logs")
-        elif default_profile and not args.aws_profile:
-            print(f"ℹ️  Using default AWS profile: {default_profile}")
+        # Validate Zendesk ID
+        zd_formatted = helper.validate_zendesk_id(args.zendesk_id)
 
-        # Handle --execute flag (only if we have a real file path)
-        if args.execute:
-            if not args.support_package:
-                print("\n❌ Error: --execute requires a file path (-f/--file)\n")
-                return 1
+        # Validate Jira ID if provided
+        jira_formatted = None
+        if args.jira_id:
+            jira_formatted = helper.validate_jira_id(args.jira_id)
 
-            if not used_profile:
-                print("\n❌ Error: --execute requires an AWS profile (use -p or --set-profile)\n")
-                return 1
+        # Validate and collect file paths
+        file_paths = []
+        if args.support_package:
+            for fpath in args.support_package:
+                validated = helper.validate_file_path(fpath)
+                file_paths.append(validated)
+
+        # Handle multiple files vs single file
+        if file_paths and len(file_paths) > 1:
+            # Batch upload mode
+            s3_path = helper.generate_s3_path(zd_formatted, jira_formatted)
+
+            # Display batch upload info
+            print("\n" + "="*70)
+            print("GT Logs Helper - Batch Upload")
+            print("="*70)
+            print(f"\nS3 Destination:\n  {s3_path}")
+            print(f"\nFiles to upload ({len(file_paths)}):")
+            for i, fpath in enumerate(file_paths, 1):
+                print(f"  {i}. {os.path.basename(fpath)}")
+            print("\n" + "="*70)
+
+            # Show profile info
+            if not args.aws_profile and not default_profile:
+                print("\nℹ️  Tip: Set a default AWS profile with --set-profile")
+                print(f"ℹ️  Using fallback AWS profile: gt-logs")
+            elif default_profile and not args.aws_profile:
+                print(f"\nℹ️  Using default AWS profile: {default_profile}")
+
+            # Handle --execute flag
+            if args.execute:
+                if not used_profile:
+                    print("\n❌ Error: --execute requires an AWS profile (use -p or --set-profile)\n")
+                    return 1
+
+                print()
+
+                # Check authentication
+                is_authenticated = helper.check_aws_authentication(used_profile)
+
+                if not is_authenticated:
+                    print(f"⚠️  AWS profile '{used_profile}' is not authenticated")
+                    # Automatically run AWS SSO login
+                    if not helper.aws_sso_login(used_profile):
+                        print("❌ Cannot proceed without authentication\n")
+                        return 1
+                else:
+                    print(f"✓ AWS profile '{used_profile}' is already authenticated\n")
+
+                # Execute batch upload
+                success_count, failure_count, _ = helper.execute_batch_upload(
+                    file_paths, zd_formatted, jira_formatted, used_profile
+                )
+                return 0 if failure_count == 0 else 1
+            else:
+                # Show AWS SSO login reminder
+                if used_profile:
+                    print(f"\n💡 Reminder: Authenticate with AWS SSO before running uploads:")
+                    print(f"   aws sso login --profile {used_profile}")
+                print()
+                return 0
+
+        else:
+            # Single file or no file (template mode)
+            single_file = file_paths[0] if file_paths else None
+
+            cmd, s3_path = helper.generate_aws_command(
+                args.zendesk_id,
+                args.jira_id,
+                single_file,
+                args.aws_profile
+            )
+
+            # Display results
+            print("\n" + "="*70)
+            print("GT Logs Helper")
+            print("="*70)
+            print(f"\nS3 Path:\n  {s3_path}")
+            print(f"\nAWS CLI Command:\n  {cmd}")
+            print("\n" + "="*70)
+
+            # Show helpful info
+            if not single_file:
+                print("\nℹ️  Tip: Use -f to specify the support package file path")
+                print("ℹ️  Tip: Use -f multiple times for batch uploads (e.g., -f file1.tar.gz -f file2.tar.gz)")
+
+            if not args.aws_profile and not default_profile:
+                print("ℹ️  Tip: Set a default AWS profile with --set-profile")
+                print(f"ℹ️  Using fallback AWS profile: gt-logs")
+            elif default_profile and not args.aws_profile:
+                print(f"ℹ️  Using default AWS profile: {default_profile}")
+
+            # Handle --execute flag (only if we have a real file path)
+            if args.execute:
+                if not single_file:
+                    print("\n❌ Error: --execute requires a file path (-f/--file)\n")
+                    return 1
+
+                if not used_profile:
+                    print("\n❌ Error: --execute requires an AWS profile (use -p or --set-profile)\n")
+                    return 1
+
+                print()
+
+                # Check authentication
+                is_authenticated = helper.check_aws_authentication(used_profile)
+
+                if not is_authenticated:
+                    print(f"⚠️  AWS profile '{used_profile}' is not authenticated")
+                    # Automatically run AWS SSO login
+                    if not helper.aws_sso_login(used_profile):
+                        print("❌ Cannot proceed without authentication\n")
+                        return 1
+                else:
+                    print(f"✓ AWS profile '{used_profile}' is already authenticated\n")
+
+                # Execute the upload
+                success = helper.execute_s3_upload(cmd)
+                return 0 if success else 1
+
+            # Show AWS SSO login reminder (when not executing)
+            if used_profile:
+                print(f"\n💡 Reminder: Authenticate with AWS SSO before running the command:")
+                print(f"   aws sso login --profile {used_profile}")
+            else:
+                print(f"\n💡 Reminder: Authenticate with AWS SSO before running the command:")
+                print(f"   aws sso login --profile <your-aws-profile>")
 
             print()
-
-            # Check authentication
-            is_authenticated = helper.check_aws_authentication(used_profile)
-
-            if not is_authenticated:
-                print(f"⚠️  AWS profile '{used_profile}' is not authenticated")
-                # Automatically run AWS SSO login
-                if not helper.aws_sso_login(used_profile):
-                    print("❌ Cannot proceed without authentication\n")
-                    return 1
-            else:
-                print(f"✓ AWS profile '{used_profile}' is already authenticated\n")
-
-            # Execute the upload
-            success = helper.execute_s3_upload(cmd)
-            return 0 if success else 1
-
-        # Show AWS SSO login reminder (when not executing)
-        if used_profile:
-            print(f"\n💡 Reminder: Authenticate with AWS SSO before running the command:")
-            print(f"   aws sso login --profile {used_profile}")
-        else:
-            print(f"\n💡 Reminder: Authenticate with AWS SSO before running the command:")
-            print(f"   aws sso login --profile <your-aws-profile>")
-
-        print()
-        return 0
+            return 0
 
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)

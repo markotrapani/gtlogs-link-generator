@@ -24,19 +24,33 @@ The `gt-logs` S3 bucket is used for storing and sharing customer support package
    - **Primary use:** Redis Cloud issues escalated to Engineering
    - **Also supports:** Redis Software issues (though less common, as @exatogt automation with Files.com handles most Redis Software uploads automatically)
 
+## What's New in v1.2.0
+
+**Batch Upload Support:**
+- Upload multiple files simultaneously to the same S3 destination
+- Interactive mode: Enter comma-separated paths or add files one at a time
+- CLI mode: Use multiple `-f` flags (e.g., `-f file1.tar.gz -f file2.tar.gz`)
+- Progress tracking for each file with success/failure summary
+- Automatic duplicate detection
+
+**Download Enhancements:**
+- Press `a` as shortcut for downloading all files (in addition to typing `all`)
+
 ## Key Features
 
 **Upload Mode:**
 - Generate properly formatted S3 bucket paths for both scenarios
 - Create complete AWS CLI commands for uploading support packages
+- **Batch upload multiple files simultaneously** (New in v1.2.0)
 - Validate all inputs (Zendesk IDs, Jira IDs, file paths)
 - Automatic command execution with AWS SSO authentication handling
 
-**Download Mode (New in v1.1.0):**
+**Download Mode (v1.1.0+):**
 - Download files from S3 using full paths or ticket IDs
 - List and select files from directories
 - Batch download multiple files at once
 - Smart path parsing (accepts ZD-145980 or full S3 paths)
+- Quick shortcut: Press `a` to download all files (v1.2.0+)
 
 **General Features:**
 - Interactive mode with mode selection (Upload/Download)
@@ -362,6 +376,83 @@ AWS CLI Command:
 
 ✅ Upload successful!
 ```
+
+### Batch Upload Multiple Files (New in v1.2.0)
+
+Upload multiple files to the same S3 destination simultaneously:
+
+```bash
+# Upload 3 files in one command
+./gtlogs-helper.py 145980 RED-172041 -f file1.tar.gz -f file2.tar.gz -f file3.tar.gz --execute
+```
+
+**Output:**
+
+```text
+======================================================================
+GT Logs Helper - Batch Upload
+======================================================================
+
+S3 Destination:
+  s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/
+
+Files to upload (3):
+  1. file1.tar.gz
+  2. file2.tar.gz
+  3. file3.tar.gz
+
+======================================================================
+
+ℹ️  Using default AWS profile: gt-logs
+
+✓ AWS profile 'gt-logs' is already authenticated
+
+======================================================================
+Batch Upload: 3 file(s)
+======================================================================
+
+S3 Destination: s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/
+
+[1/3] Uploading: file1.tar.gz
+            From: /path/to/file1.tar.gz
+📤 Uploading to S3...
+   Running: aws s3 cp /path/to/file1.tar.gz s3://gt-logs/...
+
+✅ Upload successful!
+
+----------------------------------------------------------------------
+
+[2/3] Uploading: file2.tar.gz
+            From: /path/to/file2.tar.gz
+📤 Uploading to S3...
+   Running: aws s3 cp /path/to/file2.tar.gz s3://gt-logs/...
+
+✅ Upload successful!
+
+----------------------------------------------------------------------
+
+[3/3] Uploading: file3.tar.gz
+            From: /path/to/file3.tar.gz
+📤 Uploading to S3...
+   Running: aws s3 cp /path/to/file3.tar.gz s3://gt-logs/...
+
+✅ Upload successful!
+
+======================================================================
+Batch Upload Summary
+======================================================================
+✅ Successful: 3/3
+❌ Failed: 0/3
+======================================================================
+```
+
+**Interactive Mode Batch Upload:**
+
+In interactive mode, you can also upload multiple files:
+
+1. Enter comma-separated paths: `/path/to/file1.tar.gz, /path/to/file2.tar.gz`
+2. Or add files one at a time (keep pressing Enter to add more)
+3. The tool automatically detects duplicates and validates all files before uploading
 
 ### Generate Complete AWS CLI Command
 

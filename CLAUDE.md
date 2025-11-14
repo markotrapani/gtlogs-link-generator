@@ -354,20 +354,35 @@ gtlogs-helper.py
    - No built-in S3 upload capability
    - Relies on user's AWS SSO configuration
 
-3. **Single File Upload Only**
+3. **Directory Upload Not Supported**
 
-   - No support for batch uploads
-   - No support for directory uploads
-   - Each file requires separate command
+   - Can upload multiple individual files (v1.2.0+)
+   - No support for recursive directory uploads
+   - Files must be specified individually
 
-### Future Enhancements (Potential)
+### Future Enhancements
 
-- [ ] Batch upload support (multiple files)
-- [ ] Progress bar for large file uploads
-- [ ] Verification of S3 upload completion (check file exists)
-- [ ] Support for additional Jira prefixes if needed
-- [ ] Copy S3 path to clipboard after generation
+See [ROADMAP.md](ROADMAP.md) for complete roadmap and priorities.
+
+**High Priority:**
+
+- [ ] Directory upload support (recursive)
+- [ ] Upload resume/retry for interrupted transfers
+- [ ] Progress bars for large file uploads
+
+**Medium Priority:**
+
+- [ ] S3 file management (list, delete, copy)
+- [ ] Template configurations for common scenarios
+- [ ] Post-upload verification (checksums, file existence)
 - [ ] Shell completion scripts (bash/zsh)
+
+**Low Priority:**
+
+- [ ] Custom S3 bucket support
+- [ ] Logging and audit trail
+- [ ] Clipboard integration
+- [ ] Optional GUI mode
 
 ---
 
@@ -457,13 +472,30 @@ test: Add validation tests for Jira IDs
 
 ## Version History
 
-**Current Status:** Stable production tool
+**Current Version:** v1.2.0 - Stable production tool
 
-**Recent improvements:**
+**v1.2.0 (2025-01-13):**
 
+- Batch upload support for multiple files
+- Interactive mode: Comma-separated paths or add files iteratively
+- CLI mode: Multiple `-f` flags for batch uploads
+- Progress tracking with success/failure summary
+- Download UX: Press `a` as shortcut for downloading all files
+- Automatic duplicate detection in batch uploads
+
+**v1.1.0:**
+
+- Complete S3 download functionality
+- Mode selection (Upload/Download)
+- Batch download support
+- Self-update capability with version checking
+- Input history with arrow key navigation
+
+**v1.0.0 (Initial Release):**
+
+- Upload mode with ZD-only and ZD+Jira paths
 - ESC key immediate exit support
 - Automatic AWS SSO authentication handling
-- ZD-only upload path support
 - Enhanced type annotations for Pylance
 - Improved keyboard controls (arrow keys properly ignored)
 
