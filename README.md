@@ -1,10 +1,10 @@
 # GT Logs Helper
 
-A comprehensive command-line tool for uploading and downloading Redis Support packages to/from S3 buckets. This tool helps Redis Support engineers manage customer support packages, generate properly formatted S3 paths, and efficiently transfer files between local systems and AWS S3.
+A comprehensive command-line tool for uploading and downloading support packages to/from the `gt-logs` S3 bucket. This tool streamlines the management of customer support packages, generates properly formatted S3 paths, and efficiently transfers files between local systems and AWS S3.
 
 ## Purpose
 
-Redis Support engineers use the `gt-logs` S3 bucket for storing and sharing customer support packages. This tool provides a complete solution for:
+The `gt-logs` S3 bucket is used for storing and sharing customer support packages. This tool provides a complete solution for:
 - **Uploading** support packages with properly formatted S3 paths
 - **Downloading** existing packages from S3 (new in v1.1.0!)
 - **Generating** AWS CLI commands for manual operations
