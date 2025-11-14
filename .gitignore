@@ -46,6 +46,27 @@ Thumbs.db
 # Logs
 *.log
 
+# Test files and downloads
+*.tar.gz
+*.tar
+*.zip
+*.tgz
+debuginfo*
+test_file.txt
+test_*.txt
+test_*.py
+test_dir/
+/tmp/
+test-*
+*.test
+*.backup
+*.tmp
+
+# Downloaded packages from S3
+ZD-*/
+zendesk-tickets/
+exa-to-gt/
+
 # Sibling projects (multi-repo structure - ignore other projects in marko-projects)
 ../redis-acl-builder/
 ../ldap-bind-tester/
