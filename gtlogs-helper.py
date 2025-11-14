@@ -1197,7 +1197,7 @@ def interactive_download_mode():
             # Ask which file(s) to download
             print("\nSelect files to download:")
             print("  - Enter file number(s) separated by commas (e.g., 1,3,5)")
-            print("  - Enter 'all' to download all files")
+            print("  - Enter 'all' or 'a' to download all files")
             print("  - Press Enter to cancel")
             print()
 
@@ -1209,7 +1209,7 @@ def interactive_download_mode():
                 return 0
 
             files_to_download = []
-            if selection.lower() == 'all':
+            if selection.lower() in ['all', 'a']:
                 files_to_download = files
             else:
                 try:
