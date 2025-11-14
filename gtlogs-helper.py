@@ -391,9 +391,9 @@ class GTLogsHelper:
         """Generate the full AWS CLI command."""
         s3_base_path = self.generate_s3_path(zd_id, jira_id)
 
-        # Determine AWS profile
+        # Determine AWS profile with fallback to gt-logs
         if aws_profile is None:
-            aws_profile = self.get_default_aws_profile()
+            aws_profile = self.get_default_aws_profile() or "gt-logs"
 
         # Build command
         if support_package_path:
@@ -438,8 +438,19 @@ class GTLogsHelper:
                 stderr=subprocess.PIPE,
                 timeout=10
             )
+
+            # Check if profile doesn't exist
+            if result.returncode != 0 and b"could not be found" in result.stderr.lower():
+                print(f"⚠️  AWS profile '{aws_profile}' does not exist.")
+                print(f"   Please configure it with: aws configure sso --profile {aws_profile}")
+                print(f"   Or use a different profile with -p flag")
+
             return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError):
+        except subprocess.TimeoutExpired:
+            print("⚠️  Timeout while checking AWS authentication")
+            return False
+        except FileNotFoundError:
+            print("❌ AWS CLI not found. Please install AWS CLI first.")
             return False
 
     @staticmethod
@@ -1000,8 +1011,9 @@ def interactive_upload_mode():
             aws_profile = default_profile
             print(f"\n✓ Using default profile: {default_profile}\n")
         else:
-            aws_profile = None
-            print("\n✓ No AWS profile specified\n")
+            # Use gt-logs as fallback when no profile is configured
+            aws_profile = "gt-logs"
+            print("\n✓ Using default profile: gt-logs\n")
 
         # Generate the command
         cmd, s3_path = generator.generate_aws_command(
@@ -1030,25 +1042,21 @@ def interactive_upload_mode():
                 # Determine which profile to use
                 profile_to_use = aws_profile
 
-                # Check authentication
-                if profile_to_use:
-                    is_authenticated = generator.check_aws_authentication(profile_to_use)
+                # Check authentication (profile_to_use should never be None now)
+                is_authenticated = generator.check_aws_authentication(profile_to_use)
 
-                    if not is_authenticated:
-                        print(f"\n⚠️  AWS profile '{profile_to_use}' is not authenticated")
-                        # Automatically run AWS SSO login
-                        if not generator.aws_sso_login(profile_to_use):
-                            print("❌ Cannot proceed without authentication\n")
-                            return 1
-                    else:
-                        print(f"\n✓ AWS profile '{profile_to_use}' is already authenticated\n")
-
-                    # Execute the upload
-                    success = generator.execute_s3_upload(cmd)
-                    return 0 if success else 1
+                if not is_authenticated:
+                    print(f"\n⚠️  AWS profile '{profile_to_use}' is not authenticated")
+                    # Automatically run AWS SSO login
+                    if not generator.aws_sso_login(profile_to_use):
+                        print("❌ Cannot proceed without authentication\n")
+                        return 1
                 else:
-                    print("\n⚠️  No AWS profile specified. Please configure a profile first.\n")
-                    return 1
+                    print(f"\n✓ AWS profile '{profile_to_use}' is already authenticated\n")
+
+                # Execute the upload
+                success = generator.execute_s3_upload(cmd)
+                return 0 if success else 1
             else:
                 print()
         else:
@@ -1457,10 +1465,12 @@ Examples:
             print("\nℹ️  Tip: Use -f to specify the support package file path")
 
         default_profile = helper.get_default_aws_profile()
-        used_profile = args.aws_profile or default_profile
+        # Use fallback to gt-logs if no profile is specified
+        used_profile = args.aws_profile or default_profile or "gt-logs"
 
         if not args.aws_profile and not default_profile:
             print("ℹ️  Tip: Set a default AWS profile with --set-profile")
+            print(f"ℹ️  Using fallback AWS profile: gt-logs")
         elif default_profile and not args.aws_profile:
             print(f"ℹ️  Using default AWS profile: {default_profile}")
 
