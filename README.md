@@ -1167,6 +1167,14 @@ aws sso login --profile gt-logs
 - Test AWS access: `aws sts get-caller-identity --profile gt-logs`
 - Verify SSO session: `aws sso login --profile gt-logs`
 
+## Documentation
+
+Additional documentation is available in the [docs/](docs/) directory:
+
+- **[docs/CLAUDE.md](docs/CLAUDE.md)** - Development guidelines and architecture notes
+- **[docs/ROADMAP.md](docs/ROADMAP.md)** - Feature roadmap and future enhancements
+- **[docs/TESTING.md](docs/TESTING.md)** - Comprehensive testing documentation
+
 ## Contributing
 
 This is an internal Redis Support tool. For issues or feature requests, please contact the maintainer.

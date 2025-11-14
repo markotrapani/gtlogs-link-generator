@@ -509,7 +509,9 @@ git log --oneline
 
 ## References
 
-- Main repository CLAUDE.md: [/CLAUDE.md](../CLAUDE.md)
-- Project README: [README.md](README.md)
+- Main repository CLAUDE.md: [/CLAUDE.md](../../CLAUDE.md)
+- Project README: [README.md](../README.md)
+- Project Roadmap: [ROADMAP.md](ROADMAP.md)
+- Testing Documentation: [TESTING.md](TESTING.md)
 - AWS CLI Documentation: <https://docs.aws.amazon.com/cli/>
 - Python termios: <https://docs.python.org/3/library/termios.html>
