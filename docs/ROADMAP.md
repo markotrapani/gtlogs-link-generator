@@ -74,26 +74,14 @@ GT Logs Helper.
 
 **Documentation Improvements:**
 
-- **[ ] README Overhaul** - Restructure and streamline main documentation
-  - Current README is too long and overwhelming (~1300 lines)
-  - Sections not in most intuitive order
-  - Move detailed content to wiki pages
-  - Create concise, scannable README focused on:
-    - Quick overview (what/why)
-    - Installation (< 10 lines)
-    - Quick start (3 examples max)
-    - Links to wiki for details
-  - Improve section ordering:
-    1. Overview/Purpose
-    2. Installation
-    3. Quick Start
-    4. Key Features
-    5. Links to wiki pages
-  - Goal: Reduce README to ~300-400 lines
-  - Move detailed content to wiki:
-    - Usage Examples wiki page
-    - Command Reference wiki page
-    - Getting Started wiki page
+- **[✅] README Overhaul** - COMPLETED (v1.5.1)
+  - Reduced from 1315 lines to 415 lines (68% reduction)
+  - Restructured with Quick Start section at top
+  - Added expand/collapse sections for detailed content
+  - Improved section ordering for better UX
+  - Added wiki links throughout
+  - Scannable layout with clear visual separators
+  - Moved verbose content to wiki pages
 
 **Feature Development:**
 
@@ -207,13 +195,16 @@ Ideas under evaluation for future versions:
 - ✅ Cloud emoji icons for visual clarity
 - ✅ Consistent ESC/Ctrl+C exit handling
 
-### v1.5.x (Lightning-Fast UX)
+### v1.5.x (Lightning-Fast UX + Documentation Overhaul)
 
 - ✅ Auto-submit for update prompt (Y/n)
 - ✅ Auto-submit for mode selection (1/U/2/D)
 - ✅ Smart defaults (Enter = Yes/Upload)
 - ✅ Instant feedback on valid inputs
 - ✅ Enhanced exit message spacing
+- ✅ README overhaul - 68% reduction (1315 → 415 lines)
+- ✅ Comprehensive GitHub wiki with 7 pages
+- ✅ Expand/collapse sections for better UX
 
 ## Contributing Ideas
 
