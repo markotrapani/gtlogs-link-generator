@@ -3,9 +3,21 @@
 This document outlines the development roadmap and feature priorities for
 GT Logs Helper.
 
-## Current Version: v1.5.1
+## Current Version: v1.5.2
 
-### Recently Completed (v1.5.x - Lightning-Fast UX)
+### Recently Completed
+
+#### v1.5.2 - Real-Time Progress Tracking
+
+- ✅ **Progress Bars** - Visual progress for uploads and downloads
+  - Live progress display with percentage completion
+  - File size tracking (completed/total bytes)
+  - Transfer speed indicators (MB/s, KB/s)
+  - Estimated time remaining (ETA) calculation
+  - Graceful handling of small files (< 10MB)
+  - No external dependencies (uses AWS CLI output parsing)
+
+#### v1.5.x - Lightning-Fast UX + Documentation Overhaul
 
 - ✅ **Auto-Submit Prompts** - Instant response without Enter key
   - Update prompt: Type 'y' or 'n' and go immediately
@@ -17,6 +29,12 @@ GT Logs Helper.
   - Cloud emoji icons for upload (☁️ ⬆️ ) and download (☁️ ⬇️ )
   - Clear mode selection with keyboard shortcuts
   - Consistent graceful exits (ESC/Ctrl+C → "👋 Exiting...")
+
+- ✅ **Documentation Overhaul**
+  - README reduced from 1315 to 415 lines (68% reduction)
+  - Comprehensive GitHub wiki with 7 pages
+  - Expand/collapse sections for better UX
+  - Moved "What's New" section lower in README
 
 ### Previously Completed (v1.4.x - UX Polish)
 
@@ -72,17 +90,6 @@ GT Logs Helper.
 
 ### High Priority
 
-**Documentation Improvements:**
-
-- **[✅] README Overhaul** - COMPLETED (v1.5.1)
-  - Reduced from 1315 lines to 415 lines (68% reduction)
-  - Restructured with Quick Start section at top
-  - Added expand/collapse sections for detailed content
-  - Improved section ordering for better UX
-  - Added wiki links throughout
-  - Scannable layout with clear visual separators
-  - Moved verbose content to wiki pages
-
 **Feature Development:**
 
 - **[ ] Directory Upload** - Upload entire directories recursively
@@ -95,9 +102,7 @@ GT Logs Helper.
   - Resume from last successful file in batch
   - Automatic retry with exponential backoff
 
-- **[ ] Progress Bars** - Visual progress for large file transfers
-  - Show transfer speed and ETA
-  - Support for concurrent uploads
+---
 
 ### Medium Priority
 
@@ -123,6 +128,8 @@ Enhancements that improve usability and automation:
   - Zsh completion script
   - Fish completion script
 
+---
+
 ### Low Priority
 
 Nice-to-have features for advanced use cases:
@@ -146,6 +153,8 @@ Nice-to-have features for advanced use cases:
   - Auto-copy generated S3 paths to clipboard
   - Paste S3 paths for downloads
 
+---
+
 ## Future Considerations
 
 Ideas under evaluation for future versions:
@@ -156,6 +165,8 @@ Ideas under evaluation for future versions:
 - Parallel uploads for batch operations
 - Compression before upload option
 - Smart file naming (auto-append timestamps)
+
+---
 
 ## Completed Milestones
 
@@ -205,6 +216,16 @@ Ideas under evaluation for future versions:
 - ✅ README overhaul - 68% reduction (1315 → 415 lines)
 - ✅ Comprehensive GitHub wiki with 7 pages
 - ✅ Expand/collapse sections for better UX
+- ✅ Moved "What's New" section lower in README
+
+### v1.5.2 (Real-Time Progress Tracking)
+
+- ✅ Progress bars for uploads and downloads
+- ✅ Live transfer speed indicators (MB/s, KB/s)
+- ✅ ETA calculation for file transfers
+- ✅ File size tracking (completed/total bytes)
+- ✅ Graceful handling of small files
+- ✅ No external dependencies (AWS CLI output parsing)
 
 ## Contributing Ideas
 
@@ -229,4 +250,4 @@ based on:
 
 ---
 
-**Last Updated:** 2025-11-14 (v1.5.1 release + README overhaul planning)
+**Last Updated:** 2025-11-14 (v1.5.2 release - Progress bars implemented)

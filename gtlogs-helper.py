@@ -5,7 +5,7 @@ Uploads and downloads Redis Support packages to/from S3 buckets.
 Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 """
 
-VERSION = "1.5.1"
+VERSION = "1.5.2"
 
 import argparse
 import configparser
@@ -14,6 +14,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import urllib.request
 import urllib.error
 from pathlib import Path
@@ -214,6 +215,132 @@ def prompt_for_update(update_info):
     except (UserExitException, KeyboardInterrupt):
         print("\n👋 Exiting...\n")
         sys.exit(0)
+
+
+def parse_aws_progress(line):
+    """Parse AWS CLI progress output.
+
+    Example AWS CLI output:
+    "Completed 256.0 KiB/1.5 MiB (2.5 MiB/s) with 1 file(s) remaining"
+
+    Returns:
+        tuple: (completed_bytes, total_bytes, speed_str) or (None, None, None)
+    """
+    # Match pattern: "Completed X/Y (Z/s)"
+    match = re.search(r'Completed\s+([\d.]+\s+\w+)/([\d.]+\s+\w+)\s+\(([\d.]+\s+\w+/s)\)', line)
+    if match:
+        completed_str = match.group(1)
+        total_str = match.group(2)
+        speed_str = match.group(3)
+
+        # Convert to bytes
+        completed_bytes = convert_to_bytes(completed_str)
+        total_bytes = convert_to_bytes(total_str)
+
+        return completed_bytes, total_bytes, speed_str
+    return None, None, None
+
+
+def convert_to_bytes(size_str):
+    """Convert size string like '256.0 KiB' to bytes.
+
+    Args:
+        size_str: Size string like "256.0 KiB", "1.5 MiB", "3.2 GiB"
+
+    Returns:
+        int: Size in bytes
+    """
+    units = {
+        'B': 1,
+        'KiB': 1024,
+        'MiB': 1024**2,
+        'GiB': 1024**3,
+        'TiB': 1024**4,
+        'KB': 1000,
+        'MB': 1000**2,
+        'GB': 1000**3,
+        'TB': 1000**4,
+    }
+
+    parts = size_str.strip().split()
+    if len(parts) != 2:
+        return 0
+
+    try:
+        value = float(parts[0])
+        unit = parts[1]
+        return int(value * units.get(unit, 1))
+    except (ValueError, KeyError):
+        return 0
+
+
+def format_size(bytes_size):
+    """Format bytes to human-readable size.
+
+    Args:
+        bytes_size: Size in bytes
+
+    Returns:
+        str: Formatted size like "1.5 MB", "256 KB"
+    """
+    if bytes_size == 0:
+        return "0 B"
+
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if bytes_size < 1024.0:
+            return f"{bytes_size:.1f} {unit}"
+        bytes_size /= 1024.0
+    return f"{bytes_size:.1f} PB"
+
+
+def display_progress_bar(completed, total, speed_str="", bar_length=40):
+    """Display a progress bar.
+
+    Args:
+        completed: Completed bytes
+        total: Total bytes
+        speed_str: Speed string like "2.5 MB/s"
+        bar_length: Length of progress bar in characters
+    """
+    if total == 0:
+        return
+
+    percentage = min(100, int((completed / total) * 100))
+    filled_length = int(bar_length * completed // total)
+    bar = '█' * filled_length + '░' * (bar_length - filled_length)
+
+    # Format sizes
+    completed_str = format_size(completed)
+    total_str = format_size(total)
+
+    # Calculate ETA if we have speed
+    eta_str = ""
+    if speed_str:
+        try:
+            # Extract speed value (e.g., "2.5 MB/s" -> 2.5 MB/s)
+            speed_match = re.search(r'([\d.]+)\s+(\w+)/s', speed_str)
+            if speed_match:
+                speed_value = float(speed_match.group(1))
+                speed_unit = speed_match.group(2)
+                speed_bytes = convert_to_bytes(f"{speed_value} {speed_unit}")
+
+                if speed_bytes > 0:
+                    remaining_bytes = total - completed
+                    eta_seconds = remaining_bytes / speed_bytes
+
+                    if eta_seconds < 60:
+                        eta_str = f"| ETA: {int(eta_seconds)}s"
+                    elif eta_seconds < 3600:
+                        eta_str = f"| ETA: {int(eta_seconds / 60)}m {int(eta_seconds % 60)}s"
+                    else:
+                        hours = int(eta_seconds / 3600)
+                        minutes = int((eta_seconds % 3600) / 60)
+                        eta_str = f"| ETA: {hours}h {minutes}m"
+        except (ValueError, ZeroDivisionError):
+            pass
+
+    # Display progress bar
+    print(f"\r   [{bar}] {percentage}% | {completed_str}/{total_str} | {speed_str} {eta_str}", end='', flush=True)
 
 
 class GTLogsHelper:
@@ -492,29 +619,79 @@ class GTLogsHelper:
 
     @staticmethod
     def execute_s3_upload(aws_command):
-        """Execute the AWS S3 cp command.
+        """Execute the AWS S3 cp command with progress tracking.
 
         Returns:
             True if successful, False otherwise
         """
         try:
-            print(f"\n📤 Uploading to S3...")
-            print(f"   Running: {aws_command}\n")
+            # Extract filename for display
+            filename = "file"
+            if " -f " in aws_command or ".tar.gz" in aws_command or ".zip" in aws_command:
+                parts = aws_command.split()
+                for i, part in enumerate(parts):
+                    if part == "cp" and i + 1 < len(parts):
+                        filepath = parts[i + 1]
+                        filename = os.path.basename(filepath.strip('"'))
+                        break
 
-            result = subprocess.run(
+            print(f"\n📤 Uploading: {filename}")
+            print(f"   Command: {aws_command}\n")
+
+            # Use Popen to capture output in real-time
+            process = subprocess.Popen(
                 aws_command,
                 shell=True,
-                check=False
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                universal_newlines=True,
+                bufsize=1
             )
 
-            if result.returncode == 0:
-                print("\n✅ Upload successful!\n")
+            last_progress = None
+            output_lines = []
+
+            # Read output line by line
+            for line in iter(process.stdout.readline, ''):
+                output_lines.append(line)
+
+                # Parse progress from AWS CLI output
+                completed, total, speed_str = parse_aws_progress(line)
+
+                if completed and total:
+                    # Display progress bar
+                    display_progress_bar(completed, total, speed_str)
+                    last_progress = (completed, total, speed_str)
+                elif last_progress:
+                    # Continue showing last known progress
+                    completed, total, speed_str = last_progress
+                    display_progress_bar(completed, total, speed_str)
+
+            # Wait for process to complete
+            return_code = process.wait()
+
+            # Ensure we show 100% on success
+            if return_code == 0 and last_progress:
+                _, total, speed_str = last_progress
+                display_progress_bar(total, total, speed_str)
+
+            print()  # New line after progress bar
+
+            if return_code == 0:
+                print("✅ Upload successful!\n")
                 return True
             else:
-                print(f"\n❌ Upload failed with exit code {result.returncode}\n")
+                print(f"❌ Upload failed with exit code {return_code}\n")
+                # Show last few lines of output for debugging
+                if output_lines:
+                    print("Last output:")
+                    for line in output_lines[-5:]:
+                        print(f"   {line.rstrip()}")
+                    print()
                 return False
+
         except Exception as e:
-            print(f"❌ Error during upload: {e}\n")
+            print(f"\n❌ Error during upload: {e}\n")
             return False
 
     def execute_batch_upload(self, file_paths, zd_id, jira_id, aws_profile):
@@ -675,7 +852,7 @@ class GTLogsHelper:
             return []
 
     def download_from_s3(self, bucket, key, local_path=None, aws_profile="gt-logs"):
-        """Download a file from S3.
+        """Download a file from S3 with progress tracking.
 
         Args:
             bucket: S3 bucket name
@@ -699,26 +876,67 @@ class GTLogsHelper:
         cmd = f'aws s3 cp "s3://{bucket}/{key}" "{local_path}" --profile {aws_profile}'
 
         try:
-            print(f"\n📥 Downloading from S3...")
-            print(f"   Source: s3://{bucket}/{key}")
-            print(f"   Destination: {local_path}")
-            print(f"   Running: {cmd}\n")
+            # Extract filename for display
+            filename = os.path.basename(key)
 
-            result = subprocess.run(
+            print(f"\n📥 Downloading: {filename}")
+            print(f"   Source: s3://{bucket}/{key}")
+            print(f"   Destination: {local_path}\n")
+
+            # Use Popen to capture output in real-time
+            process = subprocess.Popen(
                 cmd,
                 shell=True,
-                check=False
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                universal_newlines=True,
+                bufsize=1
             )
 
-            if result.returncode == 0:
-                print(f"\n✅ Download successful! File saved to: {local_path}\n")
+            last_progress = None
+            output_lines = []
+
+            # Read output line by line
+            for line in iter(process.stdout.readline, ''):
+                output_lines.append(line)
+
+                # Parse progress from AWS CLI output
+                completed, total, speed_str = parse_aws_progress(line)
+
+                if completed and total:
+                    # Display progress bar
+                    display_progress_bar(completed, total, speed_str)
+                    last_progress = (completed, total, speed_str)
+                elif last_progress:
+                    # Continue showing last known progress
+                    completed, total, speed_str = last_progress
+                    display_progress_bar(completed, total, speed_str)
+
+            # Wait for process to complete
+            return_code = process.wait()
+
+            # Ensure we show 100% on success
+            if return_code == 0 and last_progress:
+                _, total, speed_str = last_progress
+                display_progress_bar(total, total, speed_str)
+
+            print()  # New line after progress bar
+
+            if return_code == 0:
+                print(f"✅ Download successful! File saved to: {local_path}\n")
                 return True
             else:
-                print(f"\n❌ Download failed with exit code {result.returncode}\n")
+                print(f"❌ Download failed with exit code {return_code}\n")
+                # Show last few lines of output for debugging
+                if output_lines:
+                    print("Last output:")
+                    for line in output_lines[-5:]:
+                        print(f"   {line.rstrip()}")
+                    print()
                 return False
 
         except Exception as e:
-            print(f"❌ Error during download: {e}\n")
+            print(f"\n❌ Error during download: {e}\n")
             return False
 
     def generate_download_command(self, s3_path, local_path=None, aws_profile="gt-logs"):

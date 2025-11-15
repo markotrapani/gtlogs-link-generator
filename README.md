@@ -2,7 +2,7 @@
 
 A lightning-fast command-line tool for uploading and downloading Redis Support packages to/from AWS S3. Streamline your support workflow with automatic authentication, batch operations, and intelligent path generation.
 
-**Current Version:** v1.5.1 | **[View Wiki](https://github.com/markotrapani/gtlogs-helper/wiki)** | **[Changelog](#whats-new)**
+**Current Version:** v1.5.2 | **[View Wiki](https://github.com/markotrapani/gtlogs-helper/wiki)** | **[Changelog](#whats-new)**
 
 ---
 
@@ -56,55 +56,6 @@ source ~/.zshrc
 **Requirements:** Python 3.6+, AWS CLI, AWS SSO access to `gt-logs` bucket
 
 **[➜ Detailed Installation Guide](https://github.com/markotrapani/gtlogs-helper/wiki/Getting-Started)**
-
----
-
-## What's New
-
-### v1.5.1 - Lightning-Fast Interactive Experience
-
-- ⚡ **Auto-submit inputs** - Type 'y', 'n', '1', 'u', '2', or 'd' without pressing Enter
-- 🎯 **Smart defaults** - Enter key defaults to "Yes" for updates, "Upload" for mode selection
-- ✨ **Enhanced UI** - Cloud emoji icons (☁️ ⬆️  / ☁️ ⬇️ ) and cleaner displays
-- 👋 **Graceful exits** - Consistent ESC/Ctrl+C handling across all prompts
-
-<details>
-<summary><b>Previous Releases</b></summary>
-
-### v1.4.x - UX Polish
-- Fixed terminal cursor positioning in raw mode
-- Improved error message clarity with grouped equivalent choices
-- Enhanced mode selection with U/D keyboard shortcuts
-
-### v1.3.0 - Testing Infrastructure
-- Comprehensive test suite with 16 automated tests (100% pass rate)
-- End-to-end testing with real S3 bucket access
-- Automatic AWS SSO authentication in tests
-- MIT License and CONTRIBUTING.md for open collaboration
-
-### v1.2.0 - Batch Operations
-- Batch upload multiple files to same S3 destination
-- Interactive mode: Comma-separated paths or iterative addition
-- CLI mode: Multiple `-f` flags
-- Download UX: Press `a` to download all files
-
-### v1.1.0 - Download Support
-- Complete S3 download functionality
-- Mode selection (Upload/Download)
-- Batch download support
-- Self-update capability with version checking
-- Input history with arrow key navigation
-
-### v1.0.0 - Initial Release
-- Upload mode with ZD-only and ZD+Jira paths
-- Input validation (Zendesk IDs, Jira IDs, file paths)
-- Interactive and CLI modes
-- AWS SSO authentication handling
-- Configuration persistence
-
-</details>
-
-**[➜ Full Roadmap](https://github.com/markotrapani/gtlogs-helper/wiki/Roadmap)**
 
 ---
 
@@ -372,6 +323,62 @@ python3 tests/test_suite.py
 - Configuration management
 
 **[➜ Testing Documentation](https://github.com/markotrapani/gtlogs-helper/wiki/Testing)**
+
+---
+
+## What's New
+
+### v1.5.2 - Real-Time Progress Tracking
+
+- 📊 **Progress bars** - Visual progress for uploads and downloads with speed and ETA
+- 📈 **File size tracking** - See completed/total bytes in real-time
+- ⚡ **Transfer speed** - Live speed indicators (MB/s)
+- ⏱️  **ETA calculation** - Estimated time remaining for transfers
+
+### v1.5.1 - Lightning-Fast Interactive Experience
+
+- ⚡ **Auto-submit inputs** - Type 'y', 'n', '1', 'u', '2', or 'd' without pressing Enter
+- 🎯 **Smart defaults** - Enter key defaults to "Yes" for updates, "Upload" for mode selection
+- ✨ **Enhanced UI** - Cloud emoji icons (☁️ ⬆️  / ☁️ ⬇️ ) and cleaner displays
+- 👋 **Graceful exits** - Consistent ESC/Ctrl+C handling across all prompts
+
+<details>
+<summary><b>Previous Releases</b></summary>
+
+### v1.4.x - UX Polish
+- Fixed terminal cursor positioning in raw mode
+- Improved error message clarity with grouped equivalent choices
+- Enhanced mode selection with U/D keyboard shortcuts
+
+### v1.3.0 - Testing Infrastructure
+- Comprehensive test suite with 16 automated tests (100% pass rate)
+- End-to-end testing with real S3 bucket access
+- Automatic AWS SSO authentication in tests
+- MIT License and CONTRIBUTING.md for open collaboration
+
+### v1.2.0 - Batch Operations
+- Batch upload multiple files to same S3 destination
+- Interactive mode: Comma-separated paths or iterative addition
+- CLI mode: Multiple `-f` flags
+- Download UX: Press `a` to download all files
+
+### v1.1.0 - Download Support
+- Complete S3 download functionality
+- Mode selection (Upload/Download)
+- Batch download support
+- Self-update capability with version checking
+- Input history with arrow key navigation
+
+### v1.0.0 - Initial Release
+- Upload mode with ZD-only and ZD+Jira paths
+- Input validation (Zendesk IDs, Jira IDs, file paths)
+- Interactive and CLI modes
+- AWS SSO authentication handling
+- Configuration persistence
+
+</details>
+
+**[➜ Full Roadmap](https://github.com/markotrapani/gtlogs-helper/wiki/Roadmap)**
 
 ---
 
