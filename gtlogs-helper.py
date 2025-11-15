@@ -5,7 +5,7 @@ Uploads and downloads Redis Support packages to/from S3 buckets.
 Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 """
 
-VERSION = "1.4.5"
+VERSION = "1.5.0"
 
 import argparse
 import configparser
@@ -198,7 +198,7 @@ def prompt_for_update(update_info):
 
     try:
         while True:
-            response = input_with_esc_detection("\nUpdate now? (Y/n): ").strip().lower()
+            response = input_with_esc_detection("\nUpdate now? (Y/n): ", auto_submit_chars=['y', 'n']).strip().lower()
 
             # Default to 'y' if user presses Enter
             if not response:
@@ -212,7 +212,7 @@ def prompt_for_update(update_info):
             else:
                 print("❌ Invalid choice. Please enter Y or n\n")
     except (UserExitException, KeyboardInterrupt):
-        print("👋 Exiting...\n")
+        print("\n👋 Exiting...\n")
         sys.exit(0)
 
 
@@ -789,12 +789,13 @@ def getch():
     return getch_timeout(timeout=None)
 
 
-def input_with_esc_detection(prompt: str, history_list: Optional[list] = None) -> str:
+def input_with_esc_detection(prompt: str, history_list: Optional[list] = None, auto_submit_chars: Optional[list] = None) -> str:
     """Enhanced input that detects ESC key immediately without requiring Enter.
 
     Args:
         prompt: The input prompt to display
         history_list: Optional list of historical values for up/down arrow navigation
+        auto_submit_chars: Optional list of characters that auto-submit (e.g., ['y', 'n'])
 
     Returns:
         User input string
@@ -945,6 +946,17 @@ def input_with_esc_detection(prompt: str, history_list: Optional[list] = None) -
                 history_index = -1
                 user_input.append(ch)
                 print(ch, end='', flush=True)
+
+                # Auto-submit if character is in auto_submit_chars
+                if auto_submit_chars and ch.lower() in auto_submit_chars:
+                    # Output newline and return immediately
+                    sys.stdout.write('\r\n')
+                    sys.stdout.flush()
+                    result = ''.join(user_input)
+                    # Check for exit commands
+                    if result.lower() in ['exit', 'quit', 'q']:
+                        raise UserExitException()
+                    return result
 
     finally:
         # Always restore terminal settings
