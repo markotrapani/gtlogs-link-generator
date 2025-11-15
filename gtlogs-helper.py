@@ -5,7 +5,7 @@ Uploads and downloads Redis Support packages to/from S3 buckets.
 Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 """
 
-VERSION = "1.3.4"
+VERSION = "1.3.5"
 
 import argparse
 import configparser
@@ -113,7 +113,7 @@ def perform_self_update(download_url, latest_version):
     temp_path = script_path + '.tmp'
 
     try:
-        print(f"📥 Downloading v{latest_version}...")
+        print(f"\n📥 Downloading v{latest_version}...")
 
         # Download new version to temporary file
         req = urllib.request.Request(download_url)
@@ -487,7 +487,7 @@ class GTLogsHelper:
             True if successful, False otherwise
         """
         try:
-            print(f"📤 Uploading to S3...")
+            print(f"\n📤 Uploading to S3...")
             print(f"   Running: {aws_command}\n")
 
             result = subprocess.run(
@@ -688,7 +688,7 @@ class GTLogsHelper:
         cmd = f'aws s3 cp "s3://{bucket}/{key}" "{local_path}" --profile {aws_profile}'
 
         try:
-            print(f"📥 Downloading from S3...")
+            print(f"\n📥 Downloading from S3...")
             print(f"   Source: s3://{bucket}/{key}")
             print(f"   Destination: {local_path}")
             print(f"   Running: {cmd}\n")
