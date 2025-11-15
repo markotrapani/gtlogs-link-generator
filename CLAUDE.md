@@ -487,7 +487,16 @@ test: Add validation tests for Jira IDs
 
 ## Version History
 
-**Current Version:** v1.2.0 - Stable production tool
+**Current Version:** v1.3.0 - Stable production tool with automated testing
+
+**v1.3.0 (2025-01-15):**
+
+- Comprehensive automated test suite (16 tests, 100% pass rate)
+- End-to-end (E2E) testing with real S3 bucket access
+- Automatic AWS SSO authentication in test suite
+- Strict markdown linting across all documentation
+- MIT License and CONTRIBUTING.md for open collaboration
+- Professional development workflow documentation
 
 **v1.2.0 (2025-01-13):**
 

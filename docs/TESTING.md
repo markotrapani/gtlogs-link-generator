@@ -1,14 +1,14 @@
 # GT Logs Helper - Testing Documentation
 
-**Current Version:** v1.2.0
-**Last Updated:** 2025-01-14
-**Test Status:** Automated tests passing (17/17) | Manual tests pending
+**Current Version:** v1.3.0
+**Last Updated:** 2025-01-15
+**Test Status:** Automated tests passing (16/16) ✅ | Manual tests passing ✅
 
 ---
 
 ## Overview
 
-This document covers comprehensive testing for GT Logs Helper v1.2.0, including:
+This document covers comprehensive testing for GT Logs Helper v1.3.0, including:
 
 - Upload mode with batch upload support (NEW in v1.2.0)
 - Download mode with 'a' shortcut for all files (NEW in v1.2.0)
@@ -52,13 +52,13 @@ This document covers comprehensive testing for GT Logs Helper v1.2.0, including:
 #### 1.1 Version and Help Display
 
 ```bash
-./gtlogs-helper.py --version    # Should show v1.2.0
+./gtlogs-helper.py --version    # Should show v1.3.0
 ./gtlogs-helper.py -h           # Should show help with upload/download options
 ```
 
 **Expected:**
 
-- ✅ Version displays: "GT Logs Helper v1.2.0"
+- ✅ Version displays: "GT Logs Helper v1.3.0"
 - ✅ Help text mentions batch upload and download features
 - ✅ All command-line flags documented
 
@@ -677,11 +677,12 @@ rm /tmp/test*.tar.gz
 - ✅ Ticket IDs converted to paths
 - ✅ Invalid paths rejected
 
-### v1.2.0 Automated Test Results
+### v1.3.0 Automated Test Results
 
 **Test Suite:** `tests/test_suite.py` (16 tests, 16 passed)
 **Test Date:** January 15, 2025
 **Pass Rate:** 100% ✅
+**Version:** v1.3.0
 
 **Batch Upload (v1.2.0):**
 

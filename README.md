@@ -31,19 +31,23 @@ packages. This tool provides a complete solution for:
      as @exatogt automation with Files.com handles most Redis Software
      uploads automatically)
 
-## What's New in v1.2.0
+## What's New in v1.3.0
 
-**Batch Upload Support:**
+**Automated Testing Infrastructure:**
 
-- Upload multiple files simultaneously to the same S3 destination
-- Interactive mode: Enter comma-separated paths or add files one at a time
-- CLI mode: Use multiple `-f` flags (e.g., `-f file1.tar.gz -f file2.tar.gz`)
-- Progress tracking for each file with success/failure summary
-- Automatic duplicate detection
+- Comprehensive test suite with 16 automated tests
+- Zero manual intervention required - fully automated
+- End-to-end (E2E) testing with real S3 bucket access
+- Automatic AWS SSO authentication in tests
+- 100% test pass rate validation
+- Professional development workflow with strict linting
 
-**Download Enhancements:**
+**Developer Experience:**
 
-- Press `a` as shortcut for downloading all files (in addition to typing `all`)
+- Strict markdown linting enforced across all documentation
+- MIT License for open collaboration
+- Complete CONTRIBUTING.md with guidelines and examples
+- Automated test suite: `python3 tests/test_suite.py`
 
 ## Key Features
 
