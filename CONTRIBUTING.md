@@ -65,7 +65,7 @@ Feature requests are welcome! Please:
 
    ```bash
    # Run automated tests
-   python3 tests/test_v1_2_0.py
+   python3 tests/test_suite.py
 
    # Test manually with various inputs
    ./gtlogs-helper.py -i

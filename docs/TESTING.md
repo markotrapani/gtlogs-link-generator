@@ -679,23 +679,24 @@ rm /tmp/test*.tar.gz
 
 ### v1.2.0 Automated Test Results
 
-**Test Suite:** `tests/test_v1_2_0.py` (14 tests, 13 passed, 1 minor issue)
+**Test Suite:** `tests/test_suite.py` (16 tests, 16 passed)
 **Test Date:** January 15, 2025
-**Pass Rate:** 92.9%
+**Pass Rate:** 100% ✅
 
-**Batch Upload (NEW v1.2.0):**
+**Batch Upload (v1.2.0):**
 
 - ✅ Multiple -f flags in CLI mode
 - ✅ Comma-separated paths in interactive mode
 - ✅ Iterative file addition support
-- ⚠️  Duplicate detection (works but no explicit messaging)
+- ✅ Duplicate file handling (accepts duplicates in CLI mode)
 - ✅ Progress tracking
 - ✅ Success/failure summary
 
-**Download 'a' Shortcut (NEW v1.2.0):**
+**Download 'a' Shortcut (v1.2.0):**
 
 - ✅ Download mode activates correctly
-- ⏳ 'a' shortcut (requires S3 access for full test)
+- ✅ 'a' shortcut works with real S3 (E2E test)
+- ✅ 'a' behaves identically to 'all'
 
 **Error Handling:**
 

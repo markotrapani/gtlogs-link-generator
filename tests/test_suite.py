@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Automated test suite for GT Logs Helper v1.2.0 features
+Automated test suite for GT Logs Helper
 
-Tests all new v1.2.0 functionality without requiring manual interaction:
+Tests all functionality without requiring manual interaction:
 - Batch upload (CLI mode with multiple -f flags)
 - Batch upload (interactive mode - comma-separated, iterative)
 - Download 'a' shortcut (interactive mode)
@@ -11,7 +11,7 @@ Tests all new v1.2.0 functionality without requiring manual interaction:
 - Success/failure summaries
 
 Usage:
-    python3 tests/test_v1_2_0.py
+    python3 tests/test_suite.py
 """
 
 import subprocess
@@ -424,7 +424,7 @@ class TestRunner:
     def run_all_tests(self):
         """Run all v1.2.0 tests"""
         print(f"\n{TestColors.BOLD}{'='*70}{TestColors.RESET}")
-        print(f"{TestColors.BOLD}GT Logs Helper v1.2.0 - Automated Test Suite{TestColors.RESET}")
+        print(f"{TestColors.BOLD}GT Logs Helper - Automated Test Suite{TestColors.RESET}")
         print(f"{TestColors.BOLD}{'='*70}{TestColors.RESET}")
 
         self.setup()
