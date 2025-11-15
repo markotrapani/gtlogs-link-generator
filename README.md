@@ -2,7 +2,7 @@
 
 A lightning-fast command-line tool for uploading and downloading Redis Support packages to/from AWS S3. Streamline your support workflow with automatic authentication, batch operations, and intelligent path generation.
 
-**Current Version:** v1.5.2 | **[View Wiki](https://github.com/markotrapani/gtlogs-helper/wiki)** | **[Changelog](#whats-new)**
+**Current Version:** v1.5.3 | **[View Wiki](https://github.com/markotrapani/gtlogs-helper/wiki)** | **[Changelog](#whats-new)**
 
 ---
 
@@ -14,6 +14,9 @@ A lightning-fast command-line tool for uploading and downloading Redis Support p
 
 # Upload a file (auto-executes with AWS SSO)
 ./gtlogs-helper.py 145980 RED-172041 -f /path/to/package.tar.gz --execute
+
+# Upload entire directory with pattern filtering
+./gtlogs-helper.py 145980 --dir /path/to/directory --include "*.tar.gz" --exclude "*.log" --execute
 
 # Download files from a ticket
 ./gtlogs-helper.py --download ZD-145980
@@ -28,6 +31,7 @@ A lightning-fast command-line tool for uploading and downloading Redis Support p
 - ⚡ **Lightning-fast UX** - Auto-submit prompts, smart defaults, instant feedback
 - 📤 **Upload Mode** - Generate S3 paths for ZD-only or ZD+Jira scenarios
 - 📥 **Download Mode** - List, select, and download files from S3
+- 📁 **Directory Upload** - Upload entire directories with pattern filtering and dry-run mode
 - 🔄 **Batch Operations** - Upload/download multiple files simultaneously
 - 🔐 **Auto-Authentication** - Automatic AWS SSO login handling
 - 📝 **Input History** - Arrow key navigation through previous inputs
@@ -328,6 +332,13 @@ python3 tests/test_suite.py
 
 ## What's New
 
+### v1.5.3 - Directory Upload with Pattern Filtering
+
+- 📁 **Directory upload** - Upload entire directories with preserved structure
+- 🎯 **Pattern filtering** - Include/exclude files with wildcard patterns
+- 👀 **Dry-run mode** - Preview uploads before execution
+- 📊 **Batch progress** - Track upload progress for all files in directory
+
 ### v1.5.2 - Real-Time Progress Tracking
 
 - 📊 **Progress bars** - Visual progress for uploads and downloads with speed and ETA
@@ -335,15 +346,15 @@ python3 tests/test_suite.py
 - ⚡ **Transfer speed** - Live speed indicators (MB/s)
 - ⏱️  **ETA calculation** - Estimated time remaining for transfers
 
+<details>
+<summary><b>Previous Releases</b></summary>
+
 ### v1.5.1 - Lightning-Fast Interactive Experience
 
 - ⚡ **Auto-submit inputs** - Type 'y', 'n', '1', 'u', '2', or 'd' without pressing Enter
 - 🎯 **Smart defaults** - Enter key defaults to "Yes" for updates, "Upload" for mode selection
 - ✨ **Enhanced UI** - Cloud emoji icons (☁️ ⬆️  / ☁️ ⬇️ ) and cleaner displays
 - 👋 **Graceful exits** - Consistent ESC/Ctrl+C handling across all prompts
-
-<details>
-<summary><b>Previous Releases</b></summary>
 
 ### v1.4.x - UX Polish
 - Fixed terminal cursor positioning in raw mode
