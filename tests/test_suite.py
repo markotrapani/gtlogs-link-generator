@@ -658,6 +658,175 @@ class TestRunner:
             f"Directory support in interactive mode: {'YES' if has_directory_support else 'NO (not implemented yet, use CLI mode with --dir)'}"
         )
 
+    def test_retry_logic(self):
+        """Test 13: Retry logic with --max-retries"""
+        print(f"\n{TestColors.BOLD}Phase 13: Retry Logic (--max-retries){TestColors.RESET}\n")
+
+        # Test that max-retries argument is accepted
+        returncode, stdout, stderr = self.run_command([
+            '145980',
+            'RED-172041',
+            '-f', self.test_files[0],
+            '--max-retries', '5'
+        ])
+
+        output = stdout + stderr
+
+        self.test(
+            "--max-retries argument accepted",
+            returncode == 0,
+            f"Exit code: {returncode}"
+        )
+
+        # Test with max-retries = 1 (minimal retries)
+        returncode2, stdout2, stderr2 = self.run_command([
+            '145980',
+            '-f', self.test_files[0],
+            '--max-retries', '1'
+        ])
+
+        output2 = stdout2 + stderr2
+
+        self.test(
+            "--max-retries with value 1 accepted",
+            returncode2 == 0,
+            f"Exit code: {returncode2}"
+        )
+
+    def test_verification_flag(self):
+        """Test 14: Upload verification with --verify"""
+        print(f"\n{TestColors.BOLD}Phase 14: Upload Verification (--verify){TestColors.RESET}\n")
+
+        # Test that verify flag is accepted
+        returncode, stdout, stderr = self.run_command([
+            '145980',
+            'RED-172041',
+            '-f', self.test_files[0],
+            '--verify'
+        ])
+
+        output = stdout + stderr
+
+        self.test(
+            "--verify flag accepted",
+            returncode == 0,
+            f"Exit code: {returncode}"
+        )
+
+        # Verify flag should work with directory upload too
+        returncode2, stdout2, stderr2 = self.run_command([
+            '145980',
+            '--dir', self.test_dir,
+            '--dry-run',
+            '--verify'
+        ])
+
+        output2 = stdout2 + stderr2
+
+        self.test(
+            "--verify flag works with directory upload",
+            returncode2 == 0,
+            f"Exit code: {returncode2}"
+        )
+
+    def test_state_file_management(self):
+        """Test 15: State file management (--clean-state, --no-resume)"""
+        print(f"\n{TestColors.BOLD}Phase 15: State File Management{TestColors.RESET}\n")
+
+        # Test --clean-state command
+        returncode, stdout, stderr = self.run_command(['--clean-state'])
+
+        output = stdout + stderr
+
+        self.test(
+            "--clean-state command accepted",
+            returncode == 0,
+            f"Exit code: {returncode}"
+        )
+
+        self.test(
+            "--clean-state provides feedback",
+            "state" in output.lower() or "clean" in output.lower(),
+            "No state-related output found"
+        )
+
+        # Test --no-resume flag
+        returncode2, stdout2, stderr2 = self.run_command([
+            '145980',
+            '-f', self.test_files[0],
+            '--no-resume'
+        ])
+
+        output2 = stdout2 + stderr2
+
+        self.test(
+            "--no-resume flag accepted",
+            returncode2 == 0,
+            f"Exit code: {returncode2}"
+        )
+
+        # Should NOT show resume prompt when --no-resume is used
+        self.test(
+            "--no-resume prevents resume prompt",
+            "resume" not in output2.lower() or "no-resume" in output2.lower(),
+            "Resume prompt appeared despite --no-resume flag"
+        )
+
+    def test_combined_retry_and_verify(self):
+        """Test 16: Combined --max-retries and --verify"""
+        print(f"\n{TestColors.BOLD}Phase 16: Combined Retry and Verification{TestColors.RESET}\n")
+
+        # Test combining both flags
+        returncode, stdout, stderr = self.run_command([
+            '145980',
+            'RED-172041',
+            '-f', self.test_files[0],
+            '--max-retries', '3',
+            '--verify'
+        ])
+
+        output = stdout + stderr
+
+        self.test(
+            "Combined --max-retries and --verify accepted",
+            returncode == 0,
+            f"Exit code: {returncode}"
+        )
+
+        # Test with batch upload
+        returncode2, stdout2, stderr2 = self.run_command([
+            '145980',
+            '-f', self.test_files[0],
+            '-f', self.test_files[1],
+            '--max-retries', '2',
+            '--verify'
+        ])
+
+        output2 = stdout2 + stderr2
+
+        self.test(
+            "Retry and verify work with batch upload",
+            returncode2 == 0,
+            f"Exit code: {returncode2}"
+        )
+
+        # Test with directory upload
+        returncode3, stdout3, stderr3 = self.run_command([
+            '145980',
+            '--dir', self.test_dir,
+            '--dry-run',
+            '--max-retries', '4',
+            '--verify'
+        ])
+
+        output3 = stdout3 + stderr3
+
+        self.test(
+            "Retry and verify work with directory upload",
+            returncode3 == 0,
+            f"Exit code: {returncode3}"
+        )
+
     def run_all_tests(self):
         """Run all v1.2.0 tests"""
         print(f"\n{TestColors.BOLD}{'='*70}{TestColors.RESET}")
@@ -681,6 +850,11 @@ class TestRunner:
             self.test_directory_upload_with_exclude_patterns()
             self.test_directory_upload_error_handling()
             self.test_interactive_directory_upload()
+            # Resume/retry tests (v1.6.0+)
+            self.test_retry_logic()
+            self.test_verification_flag()
+            self.test_state_file_management()
+            self.test_combined_retry_and_verify()
 
         finally:
             self.cleanup()
