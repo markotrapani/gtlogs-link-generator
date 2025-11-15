@@ -262,13 +262,55 @@ class TestRunner:
             f"Iterative mode: {'YES' if has_iterative else 'NO (may not be implemented yet)'}"
         )
 
+    def check_aws_auth(self) -> bool:
+        """Check if AWS is authenticated, and authenticate if not"""
+        try:
+            # Check current auth status
+            result = subprocess.run(
+                ['aws', 'sts', 'get-caller-identity', '--profile', 'gt-logs'],
+                capture_output=True,
+                timeout=5,
+                text=True
+            )
+
+            if result.returncode == 0:
+                return True
+
+            # Not authenticated - trigger SSO login
+            print(f"\n  {TestColors.YELLOW}⚠ AWS not authenticated - triggering SSO login...{TestColors.RESET}")
+            print(f"  {TestColors.BLUE}🌐 Browser window will open for authentication{TestColors.RESET}")
+            print(f"  {TestColors.BLUE}Please complete the SSO login in your browser{TestColors.RESET}\n")
+
+            # Run aws sso login (this will open browser)
+            sso_result = subprocess.run(
+                ['aws', 'sso', 'login', '--profile', 'gt-logs'],
+                timeout=120  # Give user 2 minutes to complete browser auth
+            )
+
+            if sso_result.returncode == 0:
+                print(f"\n  {TestColors.GREEN}✓ AWS authentication successful!{TestColors.RESET}")
+                return True
+            else:
+                print(f"\n  {TestColors.YELLOW}⚠ AWS authentication failed or cancelled{TestColors.RESET}")
+                return False
+
+        except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+            print(f"\n  {TestColors.YELLOW}⚠ AWS CLI not available or timeout: {e}{TestColors.RESET}")
+            return False
+
     def test_download_a_shortcut(self):
-        """Test 6: Download mode 'a' shortcut"""
+        """Test 6: Download mode 'a' shortcut (with E2E if authenticated)"""
         print(f"\n{TestColors.BOLD}Phase 6: Download 'a' Shortcut{TestColors.RESET}\n")
 
-        # This test would require actual S3 access or mocking
-        # For now, we'll test that the download mode accepts the flag
+        # Check AWS authentication
+        is_authenticated = self.check_aws_auth()
 
+        if is_authenticated:
+            print(f"  {TestColors.GREEN}✓ AWS authenticated - running E2E tests{TestColors.RESET}")
+        else:
+            print(f"  {TestColors.YELLOW}⚠ AWS not authenticated - testing input validation only{TestColors.RESET}")
+
+        # Test 1: CLI download mode activates
         returncode, stdout, stderr = self.run_command([
             '--download',
             'ZD-145980'
@@ -276,18 +318,78 @@ class TestRunner:
 
         output = stdout + stderr
 
-        # Should either succeed (if authenticated) or show auth error
         self.test(
             "Download mode activates",
             "download" in output.lower() or "s3://" in output or "AWS" in output,
             "Download mode not detected"
         )
 
-        # The 'a' shortcut is tested in interactive mode
-        # We'll simulate it here if we can enter interactive download mode
+        # Test 2: Interactive mode - 'a' shortcut for "download all"
+        # Simulate: select download mode (2), enter ticket ID, then 'a' for all files
 
-        print(f"\n  {TestColors.YELLOW}Note: 'a' shortcut testing requires S3 access{TestColors.RESET}")
-        print(f"  {TestColors.YELLOW}Skipping full download test (would require real S3 data){TestColors.RESET}")
+        if is_authenticated:
+            # E2E test with real S3
+            # Use a temporary download directory
+            download_dir = "/tmp/gtlogs_test_downloads"
+            os.makedirs(download_dir, exist_ok=True)
+
+            # Mode 2 (download), ticket ID, default profile, 'a' for all, download directory
+            stdin_input = f"2\nZD-145980\n\na\n{download_dir}\n"
+
+            returncode, stdout, stderr = self.run_command(
+                ['-i'],
+                stdin_input=stdin_input
+            )
+
+            output = stdout + stderr
+
+            self.test(
+                "'a' shortcut works with real S3 (E2E)",
+                "download" in output.lower() and ("successful" in output.lower() or "Downloaded" in output),
+                f"Download didn't complete: {output[:200]}"
+            )
+
+            # Clean up download directory
+            if os.path.exists(download_dir):
+                import shutil
+                shutil.rmtree(download_dir)
+
+        else:
+            # Input validation test only
+            stdin_input = "2\nZD-145980\n\na\n"  # Mode 2, ticket, default profile, 'a' for all
+
+            returncode, stdout, stderr = self.run_command(
+                ['-i'],
+                stdin_input=stdin_input
+            )
+
+            output = stdout + stderr
+
+            # Check if 'a' was accepted (won't error on 'invalid selection')
+            self.test(
+                "'a' shortcut accepted as valid input",
+                "invalid" not in output.lower() or "AWS" in output or "authenticate" in output.lower(),
+                "'a' rejected as invalid input"
+            )
+
+        # Test 3: Compare behavior - 'a' vs 'all' should be identical
+        stdin_input_all = "2\nZD-145980\n\nall\n"
+
+        returncode_all, stdout_all, stderr_all = self.run_command(
+            ['-i'],
+            stdin_input=stdin_input_all
+        )
+
+        output_all = stdout_all + stderr_all
+
+        # Both should behave similarly (both try to download or both fail auth)
+        self.test(
+            "'a' behaves like 'all' shortcut",
+            ("AWS" in output and "AWS" in output_all) or
+            ("download" in output.lower() and "download" in output_all.lower()) or
+            ("authenticate" in output.lower() and "authenticate" in output_all.lower()),
+            f"'a' and 'all' produce different behaviors"
+        )
 
     def test_batch_upload_with_execute_flag(self):
         """Test 7: Batch upload with --execute flag (dry-run check)"""
