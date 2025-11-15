@@ -73,8 +73,15 @@ def check_for_updates(timeout=5):
         latest_version = data['tag_name'].lstrip('v')  # Remove 'v' prefix if present
         current_version = VERSION
 
-        # Simple version comparison (assumes semantic versioning)
-        update_available = latest_version != current_version
+        # Proper semantic version comparison - only update if remote is newer
+        def version_tuple(v):
+            return tuple(map(int, v.split('.')))
+
+        try:
+            update_available = version_tuple(latest_version) > version_tuple(current_version)
+        except (ValueError, AttributeError):
+            # Fall back to string comparison if version parsing fails
+            update_available = latest_version != current_version
 
         # Get release notes (first 3 lines of body)
         release_notes = []
