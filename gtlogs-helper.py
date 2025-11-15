@@ -5,7 +5,7 @@ Uploads and downloads Redis Support packages to/from S3 buckets.
 Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 """
 
-VERSION = "1.4.3"
+VERSION = "1.4.4"
 
 import argparse
 import configparser
@@ -196,13 +196,24 @@ def prompt_for_update(update_info):
         for note in update_info['release_notes']:
             print(f"   - {note}")
 
-    response = input_with_esc_detection("\nUpdate now? (y/n): ").strip().lower()
+    try:
+        while True:
+            response = input_with_esc_detection("\nUpdate now? (Y/n): ").strip().lower()
 
-    if response == 'y':
-        return perform_self_update(update_info['download_url'], update_info['latest_version'])
-    else:
-        print("\nUpdate cancelled.\n")
-        return False
+            # Default to 'y' if user presses Enter
+            if not response:
+                response = 'y'
+
+            if response == 'y':
+                return perform_self_update(update_info['download_url'], update_info['latest_version'])
+            elif response == 'n':
+                print("\nUpdate cancelled.\n")
+                return False
+            else:
+                print("❌ Invalid choice. Please enter Y or n\n")
+    except (UserExitException, KeyboardInterrupt):
+        print("👋 Exiting...\n")
+        sys.exit(0)
 
 
 class GTLogsHelper:
