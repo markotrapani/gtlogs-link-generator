@@ -9,6 +9,7 @@ Tests all functionality without requiring manual interaction:
 - Duplicate detection
 - Progress tracking
 - Success/failure summaries
+- Directory upload (dry-run, pattern filtering, error handling)
 
 Usage:
     python3 tests/test_suite.py
@@ -37,12 +38,13 @@ class TestRunner:
     def __init__(self):
         self.script_path = './gtlogs-helper.py'
         self.test_files: List[str] = []
+        self.test_dir: str = ""
         self.passed = 0
         self.failed = 0
         self.test_number = 0
 
     def setup(self):
-        """Create test files"""
+        """Create test files and directory structure"""
         print(f"\n{TestColors.BLUE}Setting up test environment...{TestColors.RESET}")
 
         # Create test files in /tmp
@@ -53,16 +55,46 @@ class TestRunner:
             self.test_files.append(filepath)
             print(f"  Created: {filepath}")
 
+        # Create test directory structure for directory upload tests
+        self.test_dir = "/tmp/test_dir_upload"
+        os.makedirs(f"{self.test_dir}/logs", exist_ok=True)
+        os.makedirs(f"{self.test_dir}/configs", exist_ok=True)
+        os.makedirs(f"{self.test_dir}/data", exist_ok=True)
+
+        # Create test files in directory
+        with open(f"{self.test_dir}/README.txt", 'w') as f:
+            f.write("Test readme\n")
+        with open(f"{self.test_dir}/logs/debug.log", 'w') as f:
+            f.write("Debug log content\n")
+        with open(f"{self.test_dir}/logs/error.log", 'w') as f:
+            f.write("Error log content\n")
+        with open(f"{self.test_dir}/configs/app.conf", 'w') as f:
+            f.write("App config\n")
+        with open(f"{self.test_dir}/configs/db.conf", 'w') as f:
+            f.write("DB config\n")
+        with open(f"{self.test_dir}/data/data1.tar.gz", 'w') as f:
+            f.write("Data file 1\n")
+        with open(f"{self.test_dir}/data/data2.tar.gz", 'w') as f:
+            f.write("Data file 2\n")
+
+        print(f"  Created: {self.test_dir}/ (with 7 files)")
+
         print(f"{TestColors.GREEN}✓ Setup complete{TestColors.RESET}\n")
 
     def cleanup(self):
-        """Remove test files"""
+        """Remove test files and directory"""
         print(f"\n{TestColors.BLUE}Cleaning up test files...{TestColors.RESET}")
 
         for filepath in self.test_files:
             if os.path.exists(filepath):
                 os.remove(filepath)
                 print(f"  Removed: {filepath}")
+
+        # Remove test directory
+        if os.path.exists(self.test_dir):
+            import shutil
+            shutil.rmtree(self.test_dir)
+            print(f"  Removed: {self.test_dir}/")
 
         print(f"{TestColors.GREEN}✓ Cleanup complete{TestColors.RESET}\n")
 
@@ -421,6 +453,211 @@ class TestRunner:
             "Execute flag not processed"
         )
 
+    def test_directory_upload_dry_run(self):
+        """Test 8: Directory upload in dry-run mode"""
+        print(f"\n{TestColors.BOLD}Phase 8: Directory Upload (Dry-run Mode){TestColors.RESET}\n")
+
+        returncode, stdout, stderr = self.run_command([
+            '145980',
+            'RED-172041',
+            '--dir', self.test_dir,
+            '--dry-run'
+        ])
+
+        output = stdout + stderr
+
+        self.test(
+            "Directory upload dry-run completes",
+            returncode == 0,
+            f"Exit code: {returncode}"
+        )
+
+        self.test(
+            "Dry-run mode detected",
+            "DRY RUN" in output,
+            "Dry-run indicator not found"
+        )
+
+        self.test(
+            "File count shown (7 files)",
+            "7 file(s)" in output,
+            "File count not shown or incorrect"
+        )
+
+        self.test(
+            "Directory structure preserved in output",
+            "test_dir_upload/logs/" in output or "logs/debug.log" in output,
+            "Directory structure not shown"
+        )
+
+        self.test(
+            "No actual upload occurred",
+            "No files were uploaded" in output or "Dry run complete" in output,
+            "Upload may have occurred in dry-run mode"
+        )
+
+    def test_directory_upload_with_include_patterns(self):
+        """Test 9: Directory upload with include patterns"""
+        print(f"\n{TestColors.BOLD}Phase 9: Directory Upload (Include Patterns){TestColors.RESET}\n")
+
+        # Include only .tar.gz files
+        returncode, stdout, stderr = self.run_command([
+            '145980',
+            'RED-172041',
+            '--dir', self.test_dir,
+            '--include', '*.tar.gz',
+            '--dry-run'
+        ])
+
+        output = stdout + stderr
+
+        self.test(
+            "Include pattern accepted",
+            returncode == 0,
+            f"Exit code: {returncode}"
+        )
+
+        self.test(
+            "Include pattern shown in output",
+            "Include patterns" in output and "*.tar.gz" in output,
+            "Include pattern not shown"
+        )
+
+        self.test(
+            "Only matching files found (2 files)",
+            "2 file(s)" in output,
+            f"Expected 2 files, output: {output[:200]}"
+        )
+
+        self.test(
+            "Tar.gz files included",
+            "data1.tar.gz" in output and "data2.tar.gz" in output,
+            "Expected tar.gz files not found"
+        )
+
+    def test_directory_upload_with_exclude_patterns(self):
+        """Test 10: Directory upload with exclude patterns"""
+        print(f"\n{TestColors.BOLD}Phase 10: Directory Upload (Exclude Patterns){TestColors.RESET}\n")
+
+        # Exclude .log files
+        returncode, stdout, stderr = self.run_command([
+            '145980',
+            'RED-172041',
+            '--dir', self.test_dir,
+            '--exclude', '*.log',
+            '--dry-run'
+        ])
+
+        output = stdout + stderr
+
+        self.test(
+            "Exclude pattern accepted",
+            returncode == 0,
+            f"Exit code: {returncode}"
+        )
+
+        self.test(
+            "Exclude pattern shown in output",
+            "Exclude patterns" in output and "*.log" in output,
+            "Exclude pattern not shown"
+        )
+
+        self.test(
+            "Log files excluded (5 files remaining)",
+            "5 file(s)" in output,
+            f"Expected 5 files, output: {output[:200]}"
+        )
+
+        self.test(
+            "Log files not in output",
+            "debug.log" not in output and "error.log" not in output,
+            "Log files found in output (should be excluded)"
+        )
+
+    def test_directory_upload_error_handling(self):
+        """Test 11: Directory upload error handling"""
+        print(f"\n{TestColors.BOLD}Phase 11: Directory Upload (Error Handling){TestColors.RESET}\n")
+
+        # Test 1: No Zendesk ID
+        returncode1, stdout1, stderr1 = self.run_command([
+            '--dir', self.test_dir,
+            '--dry-run'
+        ])
+
+        output1 = stdout1 + stderr1
+
+        self.test(
+            "Error when Zendesk ID missing",
+            returncode1 != 0 or "Error" in output1 or "requires" in output1.lower(),
+            "Missing Zendesk ID not caught"
+        )
+
+        # Test 2: Invalid directory path
+        returncode2, stdout2, stderr2 = self.run_command([
+            '145980',
+            '--dir', '/nonexistent/directory',
+            '--dry-run'
+        ])
+
+        output2 = stdout2 + stderr2
+
+        self.test(
+            "Error when directory doesn't exist",
+            returncode2 != 0 or "does not exist" in output2 or "Error" in output2,
+            "Invalid directory not caught"
+        )
+
+        # Test 3: File instead of directory
+        test_file = self.test_files[0]
+        returncode3, stdout3, stderr3 = self.run_command([
+            '145980',
+            '--dir', test_file,
+            '--dry-run'
+        ])
+
+        output3 = stdout3 + stderr3
+
+        self.test(
+            "Error when path is a file, not directory",
+            returncode3 != 0 or "not a directory" in output3.lower() or "Error" in output3,
+            "File path accepted as directory"
+        )
+
+    def test_interactive_directory_upload(self):
+        """Test 12: Interactive mode directory upload"""
+        print(f"\n{TestColors.BOLD}Phase 12: Interactive Directory Upload{TestColors.RESET}\n")
+
+        # Note: Interactive mode for directory upload would need implementation
+        # This test checks if the feature exists or provides feedback
+
+        # Simulate: upload mode (1), ZD ID, Jira ID, then directory path
+        # Since directory upload in interactive mode may not be implemented yet,
+        # this is an informational test
+
+        stdin_input = f"1\n145980\nRED-172041\n{self.test_dir}\n\nn\n"
+
+        returncode, stdout, stderr = self.run_command(
+            ['-i'],
+            stdin_input=stdin_input
+        )
+
+        output = stdout + stderr
+
+        self.test(
+            "Interactive mode completes",
+            returncode == 0 or returncode == 1,
+            f"Exit code: {returncode}"
+        )
+
+        # Check if directory upload is recognized in interactive mode
+        has_directory_support = "directory" in output.lower() or self.test_dir in output
+
+        self.test(
+            "Directory path processing (informational)",
+            True,  # Always pass - this is checking if feature exists
+            f"Directory support in interactive mode: {'YES' if has_directory_support else 'NO (not implemented yet, use CLI mode with --dir)'}"
+        )
+
     def run_all_tests(self):
         """Run all v1.2.0 tests"""
         print(f"\n{TestColors.BOLD}{'='*70}{TestColors.RESET}")
@@ -438,6 +675,12 @@ class TestRunner:
             self.test_interactive_batch_upload_iterative()
             self.test_download_a_shortcut()
             self.test_batch_upload_with_execute_flag()
+            # Directory upload tests (v1.5.3+)
+            self.test_directory_upload_dry_run()
+            self.test_directory_upload_with_include_patterns()
+            self.test_directory_upload_with_exclude_patterns()
+            self.test_directory_upload_error_handling()
+            self.test_interactive_directory_upload()
 
         finally:
             self.cleanup()

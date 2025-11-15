@@ -509,6 +509,82 @@ class GTLogsHelper:
 
         return expanded_path
 
+    @staticmethod
+    def validate_directory_path(dir_path: str | None) -> str | None:
+        """Validate that the directory path exists in the filesystem.
+
+        Returns:
+            str: The expanded directory path if valid
+            None: If dir_path is empty or None
+
+        Raises:
+            ValueError: If the directory doesn't exist or isn't a directory
+        """
+        if not dir_path:
+            return None
+
+        dir_path = str(dir_path).strip()
+        if not dir_path:
+            return None
+
+        # Expand user paths like ~/
+        expanded_path = os.path.expanduser(dir_path)
+
+        # Check if directory exists
+        if not os.path.exists(expanded_path):
+            raise ValueError(f"Directory does not exist: {dir_path}")
+
+        # Check if it's actually a directory (not a file)
+        if not os.path.isdir(expanded_path):
+            raise ValueError(f"Path is not a directory: {dir_path}")
+
+        return expanded_path
+
+    @staticmethod
+    def discover_files_in_directory(dir_path: str, include_patterns: list = None,
+                                   exclude_patterns: list = None):
+        """Recursively discover all files in a directory with pattern filtering.
+
+        Args:
+            dir_path: Root directory to scan
+            include_patterns: List of glob patterns to include (e.g., ['*.tar.gz', '*.zip'])
+            exclude_patterns: List of glob patterns to exclude (e.g., ['*.log', '*.tmp'])
+
+        Returns:
+            list: List of file paths relative to dir_path
+        """
+        import fnmatch
+
+        discovered_files = []
+        dir_path = os.path.abspath(dir_path)
+
+        for root, dirs, files in os.walk(dir_path):
+            # Filter directories if needed (to skip excluded dirs entirely)
+            if exclude_patterns:
+                dirs[:] = [d for d in dirs if not any(
+                    fnmatch.fnmatch(d, pattern) for pattern in exclude_patterns
+                )]
+
+            for filename in files:
+                full_path = os.path.join(root, filename)
+                relative_path = os.path.relpath(full_path, dir_path)
+
+                # Check exclude patterns first
+                if exclude_patterns:
+                    if any(fnmatch.fnmatch(filename, pattern) or fnmatch.fnmatch(relative_path, pattern)
+                           for pattern in exclude_patterns):
+                        continue
+
+                # Check include patterns
+                if include_patterns:
+                    if not any(fnmatch.fnmatch(filename, pattern) or fnmatch.fnmatch(relative_path, pattern)
+                              for pattern in include_patterns):
+                        continue
+
+                discovered_files.append(full_path)
+
+        return discovered_files
+
     def generate_s3_path(self, zd_id, jira_id=None):
         """Generate the S3 bucket path.
 
@@ -753,6 +829,137 @@ class GTLogsHelper:
             for status, filename in results:
                 if status == 'failure':
                     print(f"  - {filename}")
+
+        print(f"{'='*70}\n")
+
+        return success_count, failure_count, results
+
+    def execute_directory_upload(self, dir_path, zd_id, jira_id, aws_profile,
+                                 include_patterns=None, exclude_patterns=None,
+                                 dry_run=False):
+        """Execute upload of an entire directory to S3, preserving structure.
+
+        Args:
+            dir_path: Root directory to upload
+            zd_id: Zendesk ticket ID (formatted)
+            jira_id: Jira ticket ID (formatted, can be None)
+            aws_profile: AWS profile to use
+            include_patterns: List of glob patterns to include
+            exclude_patterns: List of glob patterns to exclude
+            dry_run: If True, only show what would be uploaded without uploading
+
+        Returns:
+            tuple: (success_count, failure_count, results)
+        """
+        # Validate directory
+        validated_dir = self.validate_directory_path(dir_path)
+        if not validated_dir:
+            print("❌ Invalid directory path\n")
+            return 0, 0, []
+
+        # Discover files
+        print(f"\n🔍 Discovering files in: {validated_dir}")
+        if include_patterns:
+            print(f"   Include patterns: {', '.join(include_patterns)}")
+        if exclude_patterns:
+            print(f"   Exclude patterns: {', '.join(exclude_patterns)}")
+        print()
+
+        discovered_files = self.discover_files_in_directory(
+            validated_dir, include_patterns, exclude_patterns
+        )
+
+        if not discovered_files:
+            print("❌ No files found in directory\n")
+            return 0, 0, []
+
+        total_files = len(discovered_files)
+        print(f"✅ Found {total_files} file(s)\n")
+
+        # Generate S3 base path
+        s3_base_path = self.generate_s3_path(zd_id, jira_id)
+
+        # Get directory name for S3 structure
+        dir_name = os.path.basename(os.path.abspath(validated_dir))
+
+        # Show preview
+        print(f"{'='*70}")
+        print(f"Directory Upload {'(DRY RUN)' if dry_run else ''}")
+        print(f"{'='*70}\n")
+        print(f"Local directory: {validated_dir}")
+        print(f"S3 destination: {s3_base_path}{dir_name}/")
+        print(f"Total files: {total_files}\n")
+
+        if dry_run:
+            print("Files to be uploaded:")
+            for file_path in discovered_files:
+                # Calculate relative path for S3
+                rel_path = os.path.relpath(file_path, os.path.dirname(validated_dir))
+                s3_path = f"{s3_base_path}{rel_path}"
+                file_size = os.path.getsize(file_path)
+                print(f"  {format_size(file_size):>10} → {rel_path}")
+            print(f"\n{'='*70}\n")
+            print("🔍 Dry run complete. No files were uploaded.\n")
+            return 0, 0, []
+
+        # Ask for confirmation if not dry run
+        print("Proceed with upload? (Y/n): ", end='', flush=True)
+        try:
+            response = input_with_esc_detection(prompt="", allow_empty=True)
+            if response and response.lower() not in ['y', 'yes', '']:
+                print("\n❌ Upload cancelled\n")
+                return 0, 0, []
+        except (UserExitException, KeyboardInterrupt):
+            print("\n👋 Upload cancelled\n")
+            return 0, 0, []
+
+        # Upload files
+        success_count = 0
+        failure_count = 0
+        results = []
+
+        print(f"\n{'='*70}")
+        print(f"Uploading {total_files} file(s)...")
+        print(f"{'='*70}\n")
+
+        for i, file_path in enumerate(discovered_files, 1):
+            # Calculate relative path for S3 structure
+            rel_path = os.path.relpath(file_path, os.path.dirname(validated_dir))
+            s3_full_path = f"{s3_base_path}{rel_path}"
+
+            print(f"[{i}/{total_files}] {rel_path}")
+            print(f"            Local: {file_path}")
+            print(f"            S3: {s3_full_path}")
+
+            # Build upload command
+            cmd = f'aws s3 cp "{file_path}" "{s3_full_path}" --profile {aws_profile}'
+
+            # Execute upload
+            success = self.execute_s3_upload(cmd)
+
+            if success:
+                success_count += 1
+                results.append(('success', rel_path))
+            else:
+                failure_count += 1
+                results.append(('failure', rel_path))
+
+            # Add separator between uploads (except after last one)
+            if i < total_files:
+                print(f"{'-'*70}\n")
+
+        # Print summary
+        print(f"{'='*70}")
+        print(f"Directory Upload Summary")
+        print(f"{'='*70}")
+        print(f"✅ Successful: {success_count}/{total_files}")
+        print(f"❌ Failed: {failure_count}/{total_files}")
+
+        if failure_count > 0:
+            print(f"\nFailed files:")
+            for status, filepath in results:
+                if status == 'failure':
+                    print(f"  - {filepath}")
 
         print(f"{'='*70}\n")
 
@@ -1718,6 +1925,15 @@ Examples:
   # Batch upload multiple files
   %(prog)s 145980 RED-172041 -f file1.tar.gz -f file2.tar.gz -f file3.tar.gz --execute
 
+  # Upload entire directory (preserves structure)
+  %(prog)s 145980 RED-172041 --dir /path/to/directory --execute
+
+  # Upload directory with pattern filtering
+  %(prog)s 145980 RED-172041 --dir /path/to/directory --include "*.tar.gz" --exclude "*.log" --execute
+
+  # Dry run (preview what would be uploaded)
+  %(prog)s 145980 RED-172041 --dir /path/to/directory --dry-run
+
   # DOWNLOAD MODE:
   # Download from S3 path
   %(prog)s --download s3://gt-logs/zendesk-tickets/ZD-145980/file.tar.gz
@@ -1755,6 +1971,16 @@ Examples:
                        help='Run in interactive mode')
     parser.add_argument('-e', '--execute', action='store_true',
                        help='Execute the AWS S3 upload command (requires non-templated file path)')
+
+    # Directory upload arguments
+    parser.add_argument('-D', '--dir', '--directory', dest='directory',
+                       help='Upload entire directory (preserves directory structure in S3)')
+    parser.add_argument('--include', dest='include_patterns', action='append',
+                       help='Include only files matching pattern (e.g., *.tar.gz, can be used multiple times)')
+    parser.add_argument('--exclude', dest='exclude_patterns', action='append',
+                       help='Exclude files matching pattern (e.g., *.log, can be used multiple times)')
+    parser.add_argument('--dry-run', action='store_true',
+                       help='Show what would be uploaded without actually uploading')
 
     # Download mode arguments
     parser.add_argument('-d', '--download', dest='download_path',
@@ -1836,6 +2062,60 @@ Examples:
             else:
                 return 1
         return 0
+
+    # Handle directory upload mode
+    if args.directory:
+        # Require Zendesk ID for directory upload
+        if not args.zendesk_id:
+            print("❌ Error: Directory upload requires a Zendesk ID")
+            parser.print_help()
+            return 1
+
+        try:
+            # Validate Zendesk ID
+            zd_formatted = helper.validate_zendesk_id(args.zendesk_id)
+
+            # Validate Jira ID if provided
+            jira_formatted = None
+            if args.jira_id:
+                jira_formatted = helper.validate_jira_id(args.jira_id)
+
+            # Determine AWS profile
+            default_profile = helper.get_default_aws_profile()
+            used_profile = args.aws_profile or default_profile or "gt-logs"
+
+            # Check authentication (unless dry-run)
+            if not args.dry_run:
+                print(f"\nChecking AWS authentication...")
+                is_authenticated = helper.check_aws_authentication(used_profile)
+
+                if not is_authenticated:
+                    print(f"⚠️  AWS profile '{used_profile}' is not authenticated")
+                    if not helper.aws_sso_login(used_profile):
+                        print("❌ Cannot proceed without authentication\n")
+                        return 1
+                else:
+                    print(f"✓ AWS profile '{used_profile}' is already authenticated\n")
+
+            # Execute directory upload
+            success_count, failure_count, _ = helper.execute_directory_upload(
+                args.directory,
+                zd_formatted,
+                jira_formatted,
+                used_profile,
+                include_patterns=args.include_patterns,
+                exclude_patterns=args.exclude_patterns,
+                dry_run=args.dry_run
+            )
+
+            return 0 if failure_count == 0 else 1
+
+        except ValueError as e:
+            print(f"❌ Error: {e}", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"❌ Unexpected error: {e}", file=sys.stderr)
+            return 1
 
     # Interactive mode if no arguments or -i flag
     if args.interactive or (not args.zendesk_id and not args.jira_id and not args.download_path):
