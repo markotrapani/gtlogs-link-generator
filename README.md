@@ -2,7 +2,7 @@
 
 A lightning-fast command-line tool for uploading and downloading Redis Support packages to/from AWS S3. Streamline your support workflow with automatic authentication, batch operations, and intelligent path generation.
 
-**Current Version:** v1.5.3 | **[View Wiki](https://github.com/markotrapani/gtlogs-helper/wiki)** | **[Changelog](#whats-new)**
+**Current Version:** v1.6.0 | **[View Wiki](https://github.com/markotrapani/gtlogs-helper/wiki)** | **[Changelog](#whats-new)**
 
 ---
 
@@ -332,6 +332,15 @@ python3 tests/test_suite.py
 
 ## What's New
 
+### v1.6.0 - Upload/Download Resume with Retry and Verification
+
+- 🔄 **Resume capability** - Automatically resume interrupted uploads/downloads
+- 🔁 **Automatic retry** - Exponential backoff retry for failed transfers (configurable attempts)
+- ✅ **Upload verification** - S3 file size validation after upload
+- 💾 **State management** - Persistent state tracking across interruptions
+- 🎛️ **New CLI arguments** - `--max-retries`, `--verify`, `--no-resume`, `--clean-state`
+- 🐛 **Critical bug fix** - Auto-update now uses proper semantic versioning (prevents downgrades)
+
 ### v1.5.3 - Directory Upload with Pattern Filtering
 
 - 📁 **Directory upload** - Upload entire directories with preserved structure
@@ -339,15 +348,15 @@ python3 tests/test_suite.py
 - 👀 **Dry-run mode** - Preview uploads before execution
 - 📊 **Batch progress** - Track upload progress for all files in directory
 
+<details>
+<summary><b>Previous Releases</b></summary>
+
 ### v1.5.2 - Real-Time Progress Tracking
 
 - 📊 **Progress bars** - Visual progress for uploads and downloads with speed and ETA
 - 📈 **File size tracking** - See completed/total bytes in real-time
 - ⚡ **Transfer speed** - Live speed indicators (MB/s)
 - ⏱️  **ETA calculation** - Estimated time remaining for transfers
-
-<details>
-<summary><b>Previous Releases</b></summary>
 
 ### v1.5.1 - Lightning-Fast Interactive Experience
 
