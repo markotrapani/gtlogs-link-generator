@@ -5,7 +5,7 @@ Uploads and downloads Redis Support packages to/from S3 buckets.
 Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 """
 
-VERSION = "1.5.0"
+VERSION = "1.5.1"
 
 import argparse
 import configparser
@@ -1000,8 +1000,12 @@ def interactive_mode():
 
     try:
         while True:
-            mode_input = input_with_esc_detection("Your choice: ").strip().lower()
+            mode_input = input_with_esc_detection("Your choice: ", auto_submit_chars=['1', 'u', '2', 'd']).strip().lower()
             check_exit_input(mode_input)
+
+            # Default to upload (1) if user presses Enter
+            if not mode_input:
+                mode_input = '1'
 
             if mode_input in ["1", "u"]:
                 interactive_upload_mode()
