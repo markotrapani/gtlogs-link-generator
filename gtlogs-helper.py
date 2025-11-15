@@ -5,7 +5,7 @@ Uploads and downloads Redis Support packages to/from S3 buckets.
 Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 """
 
-VERSION = "1.3.2"
+VERSION = "1.3.3"  # Test release for auto-update verification
 
 import argparse
 import configparser
