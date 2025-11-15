@@ -9,6 +9,7 @@
 ## Overview
 
 This document covers comprehensive testing for GT Logs Helper v1.2.0, including:
+
 - Upload mode with batch upload support (NEW in v1.2.0)
 - Download mode with 'a' shortcut for all files (NEW in v1.2.0)
 - Input validation
@@ -49,17 +50,20 @@ This document covers comprehensive testing for GT Logs Helper v1.2.0, including:
 ### 1. Basic Functionality
 
 #### 1.1 Version and Help Display
+
 ```bash
 ./gtlogs-helper.py --version    # Should show v1.2.0
 ./gtlogs-helper.py -h           # Should show help with upload/download options
 ```
 
 **Expected:**
+
 - ✅ Version displays: "GT Logs Helper v1.2.0"
 - ✅ Help text mentions batch upload and download features
 - ✅ All command-line flags documented
 
 #### 1.2 Configuration Management
+
 ```bash
 ./gtlogs-helper.py --show-config
 ./gtlogs-helper.py --set-profile my-profile
@@ -67,6 +71,7 @@ This document covers comprehensive testing for GT Logs Helper v1.2.0, including:
 ```
 
 **Expected:**
+
 - ✅ Configuration saved to ~/.gtlogs-config.ini
 - ✅ Default profile displayed correctly
 - ✅ Profile persists across sessions
@@ -76,6 +81,7 @@ This document covers comprehensive testing for GT Logs Helper v1.2.0, including:
 ### 2. Upload Mode
 
 #### 2.1 Single File Upload (Legacy Mode)
+
 ```bash
 # ZD-only path
 ./gtlogs-helper.py 145980 -f test.tar.gz
@@ -90,12 +96,14 @@ rm test.txt
 ```
 
 **Expected:**
+
 - ✅ Generates correct S3 paths (zendesk-tickets/ or exa-to-gt/)
 - ✅ AWS command properly formatted
 - ✅ File validation works
 - ✅ Execution triggers AWS CLI
 
 #### 2.2 Batch Upload - CLI Mode (NEW v1.2.0)
+
 ```bash
 # Create test files
 echo "file1" > /tmp/test1.tar.gz
@@ -114,6 +122,7 @@ rm /tmp/test1.tar.gz /tmp/test2.tar.gz /tmp/test3.tar.gz
 ```
 
 **Expected:**
+
 - ✅ All files validated before upload
 - ✅ Progress tracking shows X/Y files
 - ✅ Success/failure summary at end
@@ -121,6 +130,7 @@ rm /tmp/test1.tar.gz /tmp/test2.tar.gz /tmp/test3.tar.gz
 - ✅ Individual file errors don't stop batch
 
 #### 2.3 Batch Upload - Interactive Mode (NEW v1.2.0)
+
 ```bash
 ./gtlogs-helper.py
 # Choose: 1 (Upload)
@@ -131,6 +141,7 @@ rm /tmp/test1.tar.gz /tmp/test2.tar.gz /tmp/test3.tar.gz
 ```
 
 **Expected:**
+
 - ✅ Comma-separated paths accepted
 - ✅ Option to add more files after initial input
 - ✅ 'done' command completes file selection
@@ -138,6 +149,7 @@ rm /tmp/test1.tar.gz /tmp/test2.tar.gz /tmp/test3.tar.gz
 - ✅ Shows file count before upload
 
 #### 2.4 Edge Cases
+
 ```bash
 # Spaces in filenames
 touch "test file with spaces.tar.gz"
@@ -159,6 +171,7 @@ ln -s test.txt test-link.txt
 ```
 
 **Expected:**
+
 - ✅ Spaces handled correctly
 - ✅ Special characters handled
 - ✅ Symlinks followed and validated
@@ -170,6 +183,7 @@ ln -s test.txt test-link.txt
 ### 3. Download Mode
 
 #### 3.1 File Listing
+
 ```bash
 # List files from ZD-only path
 ./gtlogs-helper.py --download ZD-145980
@@ -182,12 +196,14 @@ ln -s test.txt test-link.txt
 ```
 
 **Expected:**
+
 - ✅ All files in directory listed
 - ✅ File sizes shown (if available)
 - ✅ Numbered list for selection
 - ✅ Invalid paths rejected with clear error
 
 #### 3.2 File Selection
+
 ```bash
 ./gtlogs-helper.py --download ZD-145980
 # Select: 1,2,3        (multiple files)
@@ -197,6 +213,7 @@ ln -s test.txt test-link.txt
 ```
 
 **Expected:**
+
 - ✅ Comma-separated numbers work
 - ✅ 'all' selects all files
 - ✅ 'a' shortcut works (NEW v1.2.0)
@@ -204,6 +221,7 @@ ln -s test.txt test-link.txt
 - ✅ Duplicate numbers handled
 
 #### 3.3 Output Directory
+
 ```bash
 # Default (current directory)
 ./gtlogs-helper.py --download ZD-145980 --output .
@@ -216,6 +234,7 @@ ln -s test.txt test-link.txt
 ```
 
 **Expected:**
+
 - ✅ Default to current directory
 - ✅ Custom paths respected
 - ✅ Tilde expansion works
@@ -226,6 +245,7 @@ ln -s test.txt test-link.txt
 ### 4. Input Validation
 
 #### 4.1 Zendesk ID Validation
+
 ```bash
 # Valid inputs
 ./gtlogs-helper.py 145980              # ✅ Numerical only
@@ -239,12 +259,14 @@ ln -s test.txt test-link.txt
 ```
 
 **Expected:**
+
 - ✅ Accepts numerical IDs with or without ZD- prefix
 - ✅ Normalizes to ZD-###### format
 - ❌ Rejects any non-numerical characters in ID
 - ✅ Clear error message on rejection
 
 #### 4.2 Jira ID Validation
+
 ```bash
 # Valid inputs
 ./gtlogs-helper.py 145980 RED-172041   # ✅ RED- prefix
@@ -258,6 +280,7 @@ ln -s test.txt test-link.txt
 ```
 
 **Expected:**
+
 - ✅ Accepts RED- and MOD- prefixes only
 - ✅ Auto-formats RED172041 to RED-172041
 - ❌ Rejects invalid prefixes
@@ -265,6 +288,7 @@ ln -s test.txt test-link.txt
 - ✅ Clear error message on rejection
 
 #### 4.3 S3 Path Parsing (Download Mode)
+
 ```bash
 # Valid inputs
 ./gtlogs-helper.py --download s3://gt-logs/zendesk-tickets/ZD-145980/
@@ -279,6 +303,7 @@ ln -s test.txt test-link.txt
 ```
 
 **Expected:**
+
 - ✅ Full S3 paths parsed correctly
 - ✅ Ticket IDs converted to paths
 - ✅ Both ZD-only and ZD+Jira formats work
@@ -289,11 +314,13 @@ ln -s test.txt test-link.txt
 ### 5. Interactive Mode
 
 #### 5.1 Mode Selection
+
 ```bash
 ./gtlogs-helper.py
 ```
 
 **Test:**
+
 - Press 1 → Should enter upload mode
 - Press 2 → Should enter download mode
 - Press invalid (3, abc) → Should prompt retry
@@ -302,18 +329,21 @@ ln -s test.txt test-link.txt
 - Type 'exit' → Should exit
 
 **Expected:**
+
 - ✅ Mode selection menu displays
 - ✅ Valid selections work
 - ✅ Invalid selections prompt retry
 - ✅ All exit methods work
 
 #### 5.2 Interactive Upload Workflow
+
 ```bash
 ./gtlogs-helper.py
 # Choose: 1
 ```
 
 **Test flow:**
+
 1. Enter Zendesk ID (validate)
 2. Enter Jira ID (optional, validate)
 3. Enter file path(s) (validate, batch support)
@@ -321,6 +351,7 @@ ln -s test.txt test-link.txt
 5. Execute confirmation
 
 **Expected:**
+
 - ✅ Each step validates input
 - ✅ Invalid input offers retry
 - ✅ Optional fields can be skipped
@@ -328,12 +359,14 @@ ln -s test.txt test-link.txt
 - ✅ Execute confirmation works
 
 #### 5.3 Interactive Download Workflow
+
 ```bash
 ./gtlogs-helper.py
 # Choose: 2
 ```
 
 **Test flow:**
+
 1. Enter S3 path or ticket ID
 2. View file listing
 3. Select files (numbers, 'all', 'a')
@@ -341,6 +374,7 @@ ln -s test.txt test-link.txt
 5. Execute confirmation
 
 **Expected:**
+
 - ✅ Path parsing works
 - ✅ File listing displays
 - ✅ Selection methods work
@@ -352,37 +386,46 @@ ln -s test.txt test-link.txt
 ### 6. Keyboard Controls
 
 #### 6.1 ESC Key Detection
+
 **Test in interactive mode:**
+
 - Standalone ESC → Should exit immediately
 - Arrow keys → Should NOT exit (properly ignored)
 - ESC in escape sequence → Should be distinguished
 
 **Expected:**
+
 - ✅ ESC exits immediately (no Enter needed)
 - ✅ Arrow keys don't trigger exit
 - ✅ Terminal remains in normal state after exit
 
 #### 6.2 Input History (Arrow Keys)
+
 **Test:**
+
 1. Run interactive mode
 2. Enter Zendesk ID: 145980
 3. Exit and restart
 4. Press UP arrow at Zendesk prompt
 
 **Expected:**
+
 - ✅ UP arrow shows previous input (145980)
 - ✅ DOWN arrow cycles forward
 - ✅ History persists across sessions
 - ✅ History file: ~/.gtlogs-history.json
 
 #### 6.3 Special Controls
+
 **Test in interactive mode:**
+
 - Backspace → Should delete character
 - Ctrl+C → Should exit cleanly
 - Ctrl+U → Should check for updates
 - Type 'exit', 'quit', 'q' → Should exit
 
 **Expected:**
+
 - ✅ Backspace deletes characters
 - ✅ Ctrl+C exits gracefully
 - ✅ Ctrl+U triggers update check
@@ -393,6 +436,7 @@ ln -s test.txt test-link.txt
 ### 7. AWS Authentication
 
 #### 7.1 Authenticated Profile
+
 ```bash
 # Login first
 aws sso login --profile gt-logs
@@ -402,11 +446,13 @@ aws sso login --profile gt-logs
 ```
 
 **Expected:**
+
 - ✅ Authentication check passes
 - ✅ No SSO login prompt
 - ✅ Upload executes directly
 
 #### 7.2 Unauthenticated Profile
+
 ```bash
 # Logout (if possible)
 aws sso logout --profile gt-logs
@@ -416,22 +462,26 @@ aws sso logout --profile gt-logs
 ```
 
 **Expected:**
+
 - ✅ Authentication check fails
 - ✅ Automatic SSO login triggered
 - ✅ User prompted to authenticate
 - ✅ Upload proceeds after auth
 
 #### 7.3 Invalid Profile
+
 ```bash
 ./gtlogs-helper.py 145980 -p nonexistent-profile -f test.txt --execute
 ```
 
 **Expected:**
+
 - ❌ Clear error about invalid profile
 - ✅ Helpful message about profile configuration
 - ❌ Upload doesn't proceed
 
 #### 7.4 No Configuration (Fallback)
+
 ```bash
 # Backup config
 mv ~/.gtlogs-config.ini ~/.gtlogs-config.ini.backup
@@ -444,6 +494,7 @@ mv ~/.gtlogs-config.ini.backup ~/.gtlogs-config.ini
 ```
 
 **Expected:**
+
 - ✅ Falls back to 'gt-logs' profile
 - ✅ No crash or error
 - ✅ Clear message about using default profile
@@ -453,11 +504,13 @@ mv ~/.gtlogs-config.ini.backup ~/.gtlogs-config.ini
 ### 8. Auto-Update Mechanism
 
 #### 8.1 Version Check
+
 ```bash
 ./gtlogs-helper.py --version
 ```
 
 **Expected:**
+
 - ✅ Shows current version: v1.2.0
 - ✅ Checks GitHub for updates (5 second timeout)
 - ✅ If update available: shows version and release notes
@@ -465,12 +518,14 @@ mv ~/.gtlogs-config.ini.backup ~/.gtlogs-config.ini
 - ✅ If offline: graceful failure with warning
 
 #### 8.2 Ctrl+U in Interactive Mode
+
 ```bash
 ./gtlogs-helper.py
 # Press Ctrl+U at any prompt
 ```
 
 **Expected:**
+
 - ✅ Update check triggers
 - ✅ Shows update prompt if available
 - ✅ 'y' downloads and installs
@@ -479,11 +534,14 @@ mv ~/.gtlogs-config.ini.backup ~/.gtlogs-config.ini
 - ✅ Message to restart appears
 
 #### 8.3 Update Execution
+
 **Test when update available:**
+
 1. Trigger update check
 2. Choose 'y' to update
 
 **Expected:**
+
 - ✅ Backup created: gtlogs-helper.py.backup
 - ✅ New version downloaded
 - ✅ File permissions preserved (executable)
@@ -492,12 +550,15 @@ mv ~/.gtlogs-config.ini.backup ~/.gtlogs-config.ini
 - ✅ After restart: new version active
 
 #### 8.4 Update Failure and Rollback
+
 **Simulate failure:**
+
 - Network disconnects during download
 - File permission issues
 - Corrupted download
 
 **Expected:**
+
 - ✅ Error message displayed
 - ✅ Rollback to previous version
 - ✅ Backup restored if needed
@@ -509,6 +570,7 @@ mv ~/.gtlogs-config.ini.backup ~/.gtlogs-config.ini
 ### 9. Performance Tests
 
 #### 9.1 Large File Upload
+
 ```bash
 # Create 100MB test file
 dd if=/dev/zero of=/tmp/large_test.bin bs=1M count=100
@@ -521,36 +583,42 @@ rm /tmp/large_test.bin
 ```
 
 **Expected:**
+
 - ✅ File validated successfully
 - ✅ Upload command generated
 - ✅ AWS CLI handles large file
 - ✅ No timeout or memory issues
 
 #### 9.2 Batch Upload (Many Files)
+
 ```bash
 # Create 20 small test files
 for i in {1..20}; do echo "test$i" > /tmp/test$i.tar.gz; done
 
 # Batch upload
-./gtlogs-helper.py 145980 $(for i in {1..20}; do echo "-f /tmp/test$i.tar.gz"; done) --execute
+./gtlogs-helper.py 145980 \
+  $(for i in {1..20}; do echo "-f /tmp/test$i.tar.gz"; done) --execute
 
 # Cleanup
 rm /tmp/test*.tar.gz
 ```
 
 **Expected:**
+
 - ✅ All files validated
 - ✅ Progress tracking accurate
 - ✅ No performance degradation
 - ✅ Summary shows all files
 
 #### 9.3 Download from Large Directory
+
 ```bash
 # Test with S3 directory containing many files
 ./gtlogs-helper.py --download ZD-145980
 ```
 
 **Expected:**
+
 - ✅ Listing completes quickly
 - ✅ All files shown
 - ✅ Selection works smoothly
@@ -568,36 +636,43 @@ rm /tmp/test*.tar.gz
 ### Automated Test Results: ✅ ALL PASSED (17/17)
 
 #### Phase 1: Basic Functionality ✅
+
 - ✅ Version display shows correct version
 - ✅ Help display shows upload/download description
 - ✅ Configuration display works
 
 #### Phase 2: Upload Mode ✅
+
 - ✅ ZD-only path generation correct
 - ✅ ZD+Jira path generation correct
 - ✅ File path inclusion works
 - ✅ Custom profile specification works
 
 #### Phase 3: Input Validation ✅
+
 - ✅ Invalid Zendesk ID rejected (letters)
 - ✅ Invalid Jira ID rejected (wrong prefix)
 - ✅ Non-existent file rejected
 - ✅ Directory rejected when file expected
 
 #### Phase 4: Download Mode ✅
+
 - ✅ Download mode activates with --download flag
 - ✅ Authentication check triggers
 
 #### Phase 5: AWS Profile Handling ✅
+
 - ✅ Fallback to 'gt-logs' when no config exists
 - ✅ Profile properly added to commands
 
 #### Phase 6: Edge Cases ✅
+
 - ✅ Files with spaces handled correctly
 - ✅ Pre-formatted ZD IDs accepted
 - ✅ MOD Jira prefix supported
 
 #### Phase 7: Path Parsing ✅
+
 - ✅ Full S3 paths parsed correctly
 - ✅ Ticket IDs converted to paths
 - ✅ Invalid paths rejected
@@ -605,6 +680,7 @@ rm /tmp/test*.tar.gz
 ### v1.2.0 Features - Testing Required
 
 **Batch Upload (NEW v1.2.0):**
+
 - ⏳ Multiple -f flags in CLI mode
 - ⏳ Comma-separated paths in interactive mode
 - ⏳ Iterative file addition
@@ -613,6 +689,7 @@ rm /tmp/test*.tar.gz
 - ⏳ Success/failure summary
 
 **Download 'a' Shortcut (NEW v1.2.0):**
+
 - ⏳ 'a' as alias for 'all'
 - ⏳ Works same as 'all' command
 
@@ -623,12 +700,14 @@ rm /tmp/test*.tar.gz
 Use this checklist for comprehensive manual testing:
 
 ### Basic Features
+
 - [ ] Version display correct
 - [ ] Help text complete and accurate
 - [ ] Configuration save/load works
 - [ ] Default profile persists
 
 ### Upload Mode
+
 - [ ] Single file upload works
 - [ ] Batch upload (CLI) works
 - [ ] Batch upload (interactive) works
@@ -637,6 +716,7 @@ Use this checklist for comprehensive manual testing:
 - [ ] Success/failure summary correct
 
 ### Download Mode
+
 - [ ] File listing works
 - [ ] Single file selection works
 - [ ] Multiple file selection works
@@ -645,6 +725,7 @@ Use this checklist for comprehensive manual testing:
 - [ ] Output directory selection works
 
 ### Input Validation
+
 - [ ] ZD ID validation strict
 - [ ] Jira ID validation strict
 - [ ] File path validation works
@@ -652,6 +733,7 @@ Use this checklist for comprehensive manual testing:
 - [ ] Error messages helpful
 
 ### Interactive Mode
+
 - [ ] Mode selection works
 - [ ] Upload workflow complete
 - [ ] Download workflow complete
@@ -662,12 +744,14 @@ Use this checklist for comprehensive manual testing:
 - [ ] Ctrl+U triggers update check
 
 ### AWS Authentication
+
 - [ ] Authenticated profile works
 - [ ] Unauthenticated triggers SSO
 - [ ] Invalid profile shows error
 - [ ] Fallback to default works
 
 ### Auto-Update
+
 - [ ] Version check works
 - [ ] Ctrl+U works in interactive mode
 - [ ] Update download works
@@ -676,6 +760,7 @@ Use this checklist for comprehensive manual testing:
 - [ ] Offline behavior graceful
 
 ### Edge Cases
+
 - [ ] Spaces in filenames work
 - [ ] Special characters handled
 - [ ] Symlinks followed
@@ -712,6 +797,7 @@ Use this checklist for comprehensive manual testing:
 ### Bug Fixes in v1.2.0
 
 **AWS Profile Crash (Fixed in v1.1.0):**
+
 - Issue: Script crashed when no default AWS profile configured
 - Root cause: aws_profile was set to None
 - Fix: Added consistent fallback to 'gt-logs' profile
@@ -737,6 +823,7 @@ The tool is considered production-ready when:
 ## Test Environment
 
 ### Recommended Setup
+
 - **OS:** macOS or Linux (Windows partial support)
 - **Python:** 3.6+ (for f-strings and type hints)
 - **AWS CLI:** Latest version installed and configured
@@ -744,6 +831,7 @@ The tool is considered production-ready when:
 - **Terminal:** Standard terminal emulator (Terminal.app, iTerm2, gnome-terminal)
 
 ### Test Data
+
 ```bash
 # Create test files
 echo "test1" > /tmp/test1.tar.gz
@@ -805,11 +893,11 @@ print(f"[DEBUG] Raw char: {repr(ch)}")
 - [README.md](../README.md) - User documentation
 - [CLAUDE.md](CLAUDE.md) - Development guidelines
 - [ROADMAP.md](ROADMAP.md) - Future enhancements
-- AWS CLI Documentation: https://docs.aws.amazon.com/cli/
-- Python termios: https://docs.python.org/3/library/termios.html
+- AWS CLI Documentation: <https://docs.aws.amazon.com/cli/>
+- Python termios: <https://docs.python.org/3/library/termios.html>
 
 ---
 
 **Document Version:** 2.0 (v1.2.0)
 **Author:** Claude Code
-**Maintainer:** marko.trapani@redis.com
+**Maintainer:** <marko.trapani@redis.com>

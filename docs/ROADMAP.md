@@ -1,12 +1,14 @@
 # GT Logs Helper - Roadmap
 
-This document outlines the development roadmap and feature priorities for GT Logs Helper.
+This document outlines the development roadmap and feature priorities for
+GT Logs Helper.
 
 ## Current Version: v1.2.0
 
 ### Recently Completed (v1.2.0)
 
-- ✅ **Batch Upload Support** - Upload multiple files simultaneously to the same S3 destination
+- ✅ **Batch Upload Support** - Upload multiple files simultaneously to the
+  same S3 destination
   - Interactive mode: Comma-separated paths or add files one at a time
   - CLI mode: Multiple `-f` flags
   - Progress tracking with success/failure summary
@@ -107,6 +109,7 @@ Ideas under evaluation for future versions:
 ## Completed Milestones
 
 ### v1.0.0 (Initial Release)
+
 - ✅ Upload mode with ZD-only and ZD+Jira paths
 - ✅ Input validation (Zendesk IDs, Jira IDs, file paths)
 - ✅ Interactive and CLI modes
@@ -114,6 +117,7 @@ Ideas under evaluation for future versions:
 - ✅ Configuration persistence
 
 ### v1.1.0 (Download Support)
+
 - ✅ S3 download functionality
 - ✅ Mode selection (Upload/Download)
 - ✅ Batch download support
@@ -121,6 +125,7 @@ Ideas under evaluation for future versions:
 - ✅ Input history with arrow keys
 
 ### v1.2.0 (Batch Upload)
+
 - ✅ Multi-file batch upload
 - ✅ Download UX improvements (quick 'a' shortcut)
 
@@ -137,7 +142,8 @@ Have a feature request or idea? Please:
 
 ## Roadmap Updates
 
-This roadmap is reviewed and updated with each release. Priorities may shift based on:
+This roadmap is reviewed and updated with each release. Priorities may shift
+based on:
 
 - User feedback and feature requests
 - Critical bugs or security issues

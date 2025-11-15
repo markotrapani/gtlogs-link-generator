@@ -1,0 +1,11 @@
+# Ignore Directories
+
+## Ignore third-party dependencies
+
+node_modules/
+venv/
+
+## Ignore build outputs
+
+dist/
+build/

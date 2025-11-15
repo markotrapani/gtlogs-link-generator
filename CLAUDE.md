@@ -2,13 +2,17 @@
 
 **Project Type:** Python CLI Tool (Standalone utility)
 
-This is a comprehensive command-line tool for uploading and downloading Redis Support packages to/from S3 buckets. It helps Redis Support engineers manage customer support packages, generate properly formatted S3 paths, and efficiently transfer files between local systems and AWS S3.
+This is a comprehensive command-line tool for uploading and downloading Redis
+Support packages to/from S3 buckets. It helps Redis Support engineers manage
+customer support packages, generate properly formatted S3 paths, and efficiently
+transfer files between local systems and AWS S3.
 
 ---
 
 ## Project Overview
 
-**Purpose:** Complete S3 management solution for Redis Support packages - upload, download, and path generation
+**Purpose:** Complete S3 management solution for Redis Support packages -
+upload, download, and path generation
 
 **Main Features:**
 
@@ -87,7 +91,9 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 
 **Path generation function:** `generate_s3_path()` in [gtlogs-helper.py:141-154](gtlogs-helper.py#L141-L154)
 
-**CRITICAL:** Do not change bucket names, path structures, or logic without explicit permission. These paths are relied upon by multiple teams and automation systems.
+**CRITICAL:** Do not change bucket names, path structures, or logic without
+explicit permission. These paths are relied upon by multiple teams and
+automation systems.
 
 ---
 
@@ -132,9 +138,11 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 **CRITICAL IMPLEMENTATION DETAILS:**
 
 - Uses `termios` and `tty` for raw terminal mode (Unix-like systems only)
-- **Timeout detection** distinguishes standalone ESC from escape sequences (arrow keys)
+- **Timeout detection** distinguishes standalone ESC from escape sequences
+  (arrow keys)
 - **Always restore terminal settings** in finally block
-- **Graceful fallback** to regular `input()` if `termios` unavailable (Windows, non-interactive)
+- **Graceful fallback** to regular `input()` if `termios` unavailable
+  (Windows, non-interactive)
 
 **WHY THIS MATTERS:**
 
@@ -219,10 +227,14 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 ./gtlogs-helper.py 145980 MOD-12345                     # Should succeed
 
 # Invalid inputs - must reject
-./gtlogs-helper.py 145980abc RED-172041                 # Must fail: non-numerical ZD
-./gtlogs-helper.py 145980 ABC-12345                     # Must fail: invalid Jira prefix
-./gtlogs-helper.py 145980 RED-172041abc                 # Must fail: non-numerical Jira suffix
-./gtlogs-helper.py 145980 12345                         # Must fail: missing Jira prefix
+# Must fail: non-numerical ZD
+./gtlogs-helper.py 145980abc RED-172041
+# Must fail: invalid Jira prefix
+./gtlogs-helper.py 145980 ABC-12345
+# Must fail: non-numerical Jira suffix
+./gtlogs-helper.py 145980 RED-172041abc
+# Must fail: missing Jira prefix
+./gtlogs-helper.py 145980 12345
 ```
 
 #### File Path Testing
@@ -232,11 +244,14 @@ s3://gt-logs/exa-to-gt/ZD-{ticket}-{jira}/
 echo "test" > /tmp/test-package.tar.gz
 
 # Valid file path
-./gtlogs-helper.py 145980 RED-172041 -f /tmp/test-package.tar.gz   # Should succeed
+# Should succeed
+./gtlogs-helper.py 145980 RED-172041 -f /tmp/test-package.tar.gz
 
 # Invalid file paths - must reject
-./gtlogs-helper.py 145980 RED-172041 -f /nonexistent/file.tar.gz   # Must fail: file doesn't exist
-./gtlogs-helper.py 145980 RED-172041 -f /tmp                       # Must fail: directory not file
+# Must fail: file doesn't exist
+./gtlogs-helper.py 145980 RED-172041 -f /nonexistent/file.tar.gz
+# Must fail: directory not file
+./gtlogs-helper.py 145980 RED-172041 -f /tmp
 ```
 
 #### Interactive Mode Testing
