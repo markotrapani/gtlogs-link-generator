@@ -55,13 +55,15 @@ Thumbs.db
 debuginfo*
 test_file.txt
 test_*.txt
-test_*.py
 test_dir/
 /tmp/
 test-*
 *.test
 *.backup
 *.tmp
+
+# Exception: Allow test scripts in tests/ directory
+!tests/test_*.py
 
 # Downloaded packages from S3
 ZD-*/
