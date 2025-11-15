@@ -44,11 +44,13 @@ packages. This tool provides a complete solution for:
 **Previous Releases:**
 
 **v1.4.x - UX Polish:**
+
 - Fixed terminal cursor positioning in raw mode
 - Improved error message clarity with grouped equivalent choices
 - Enhanced mode selection with U/D keyboard shortcuts
 
 **v1.3.0 - Testing Infrastructure:**
+
 - Comprehensive test suite with 16 automated tests (100% pass rate)
 - End-to-end testing with real S3 bucket access
 - Automatic AWS SSO authentication in tests
