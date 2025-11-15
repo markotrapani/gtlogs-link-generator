@@ -5,7 +5,7 @@ Uploads and downloads Redis Support packages to/from S3 buckets.
 Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 """
 
-VERSION = "1.3.3"  # Test release for auto-update verification
+VERSION = "1.3.4"
 
 import argparse
 import configparser
@@ -196,15 +196,11 @@ def prompt_for_update(update_info):
         for note in update_info['release_notes']:
             print(f"   - {note}")
 
-    try:
-        response = input_with_esc_detection("\nUpdate now? (y/n): ").strip().lower()
+    response = input_with_esc_detection("\nUpdate now? (y/n): ").strip().lower()
 
-        if response == 'y':
-            return perform_self_update(update_info['download_url'], update_info['latest_version'])
-        else:
-            print("Update cancelled.\n")
-            return False
-    except (UserExitException, KeyboardInterrupt):
+    if response == 'y':
+        return perform_self_update(update_info['download_url'], update_info['latest_version'])
+    else:
         print("\nUpdate cancelled.\n")
         return False
 
