@@ -5,7 +5,7 @@ Uploads and downloads Redis Support packages to/from S3 buckets.
 Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 """
 
-VERSION = "1.4.2"
+VERSION = "1.4.3"
 
 import argparse
 import configparser
@@ -987,7 +987,7 @@ def interactive_mode():
                 interactive_download_mode()
                 break
             else:
-                print("❌ Invalid choice. Please enter 1, U, 2, or D\n")
+                print("❌ Invalid choice. Please enter 1/U or 2/D\n")
         return 0
     except UserExitException:
         print("👋 Exiting...\n")
