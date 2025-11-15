@@ -17,7 +17,7 @@ import sys
 import urllib.request
 import urllib.error
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 # For immediate keypress detection (ESC without Enter)
 if TYPE_CHECKING:
@@ -140,12 +140,12 @@ def perform_self_update(download_url, latest_version):
         print("Please restart the script to use the new version.\n")
         return True
 
-    except urllib.error.URLError as e:
-        print(f"❌ Download failed: {e.reason}", file=sys.stderr)
-        rollback_update(script_path, backup_path, temp_path)
-        return False
     except urllib.error.HTTPError as e:
         print(f"❌ Download failed: HTTP {e.code} {e.reason}", file=sys.stderr)
+        rollback_update(script_path, backup_path, temp_path)
+        return False
+    except urllib.error.URLError as e:
+        print(f"❌ Download failed: {e.reason}", file=sys.stderr)
         rollback_update(script_path, backup_path, temp_path)
         return False
     except OSError as e:
@@ -778,7 +778,7 @@ def getch():
     return getch_timeout(timeout=None)
 
 
-def input_with_esc_detection(prompt: str, history_list: list = None) -> str:
+def input_with_esc_detection(prompt: str, history_list: Optional[list] = None) -> str:
     """Enhanced input that detects ESC key immediately without requiring Enter.
 
     Args:
@@ -822,9 +822,9 @@ def input_with_esc_detection(prompt: str, history_list: list = None) -> str:
             # Read one character while in raw mode
             ch = sys.stdin.read(1)
 
-            # If read fails, fall back
+            # If read fails, fall back to empty input
             if not ch:
-                break
+                return ""
 
             # ESC key pressed - check if it's a standalone ESC or part of an escape sequence
             if ch == '\x1b':
@@ -932,6 +932,9 @@ def input_with_esc_detection(prompt: str, history_list: list = None) -> str:
     finally:
         # Always restore terminal settings
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+    # Safety fallback (should never reach here as while loop always returns or raises)
+    return ""
 
 
 def check_exit_input(user_input):
