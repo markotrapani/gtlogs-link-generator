@@ -1,20 +1,22 @@
 # GT Logs Helper - Testing Documentation
 
-**Current Version:** v1.3.0
-**Last Updated:** 2025-01-15
+**Current Version:** v1.5.1
+**Last Updated:** 2025-11-14
 **Test Status:** Automated tests passing (16/16) ✅ | Manual tests passing ✅
 
 ---
 
 ## Overview
 
-This document covers comprehensive testing for GT Logs Helper v1.3.0, including:
+This document covers comprehensive testing for GT Logs Helper v1.5.1, including:
 
-- Upload mode with batch upload support (NEW in v1.2.0)
-- Download mode with 'a' shortcut for all files (NEW in v1.2.0)
-- Input validation
-- AWS authentication
-- Keyboard controls
+- **Lightning-fast UX** (v1.5.x) - Auto-submit prompts and smart defaults
+- **Enhanced terminal experience** (v1.4.x) - Cursor positioning and exit handling
+- Upload mode with batch upload support (v1.2.0)
+- Download mode with 'a' shortcut for all files (v1.2.0)
+- Input validation and error handling
+- AWS SSO authentication
+- Keyboard controls (ESC, Ctrl+C, Ctrl+U, arrow keys)
 - Auto-update mechanism
 
 ---
@@ -383,9 +385,101 @@ ln -s test.txt test-link.txt
 
 ---
 
-### 6. Keyboard Controls
+### 6. UX Enhancements (v1.4.x - v1.5.x)
 
-#### 6.1 ESC Key Detection
+#### 6.1 Auto-Submit Prompts (v1.5.x)
+
+**Test update prompt:**
+
+```bash
+# Start from older version and check for updates
+./gtlogs-helper.py
+# Press Ctrl+U or wait for auto-check
+```
+
+Expected auto-submit behavior:
+- Type 'y' → Immediately proceeds with update (no Enter needed)
+- Type 'Y' → Immediately proceeds with update (no Enter needed)
+- Type 'n' → Immediately cancels update (no Enter needed)
+- Type 'N' → Immediately cancels update (no Enter needed)
+- Press Enter alone → Defaults to 'Y' and proceeds with update
+- Type invalid char (e.g., 'x') → Waits for Enter, then shows error and re-prompts
+- Press ESC → Shows "\n\n👋 Exiting..." and exits gracefully
+- Press Ctrl+C → Shows "\n\n👋 Exiting..." and exits gracefully
+
+**Test mode selection:**
+
+```bash
+./gtlogs-helper.py
+```
+
+Expected auto-submit behavior:
+- Type '1' → Immediately enters Upload mode (no Enter needed)
+- Type 'u' or 'U' → Immediately enters Upload mode (no Enter needed)
+- Type '2' → Immediately enters Download mode (no Enter needed)
+- Type 'd' or 'D' → Immediately enters Download mode (no Enter needed)
+- Press Enter alone → Defaults to '1' (Upload mode)
+- Type invalid char (e.g., 'x') → Waits for Enter, then shows error and re-prompts
+- Press ESC → Shows "👋 Exiting..." and exits gracefully
+
+**Verification:**
+- ✅ Y/n choices auto-submit instantly
+- ✅ 1/U/2/D choices auto-submit instantly
+- ✅ Enter key uses smart defaults (Y for update, 1 for upload)
+- ✅ Invalid input shows error and re-prompts
+- ✅ ESC/Ctrl+C exit gracefully with proper spacing
+
+#### 6.2 Terminal Cursor Positioning (v1.4.x)
+
+**Test cursor positioning:**
+
+```bash
+./gtlogs-helper.py
+# At mode selection, type invalid input
+Your choice: x[Enter]
+❌ Invalid choice. Please enter 1/U or 2/D
+                  ↑ Should be left-aligned, not indented
+```
+
+Expected behavior:
+- All output after user input should be left-aligned
+- No weird indentation or tabbing over
+- Proper carriage returns (`\r\n`) in raw terminal mode
+
+**Verification:**
+- ✅ Error messages appear left-aligned
+- ✅ Progress indicators appear left-aligned
+- ✅ No cursor positioning artifacts
+- ✅ Clean output throughout entire session
+
+#### 6.3 Visual Enhancements (v1.4.x)
+
+**Test mode selection display:**
+
+```bash
+./gtlogs-helper.py
+```
+
+Expected display:
+```
+Select operation mode:
+☁️ ⬆️  1 or U: UPLOAD to S3 (generate links and upload files)
+☁️ ⬇️  2 or D: DOWNLOAD from S3 (retrieve files from existing paths)
+
+Your choice:
+```
+
+**Verification:**
+- ✅ Cloud emoji icons display correctly
+- ✅ Proper spacing between emojis
+- ✅ Clear visual distinction between upload/download
+- ✅ Keyboard shortcuts (U/D) clearly indicated
+
+---
+
+### 7. Keyboard Controls
+
+#### 7.1 ESC Key Detection
 
 **Test in interactive mode:**
 
@@ -399,7 +493,7 @@ ln -s test.txt test-link.txt
 - ✅ Arrow keys don't trigger exit
 - ✅ Terminal remains in normal state after exit
 
-#### 6.2 Input History (Arrow Keys)
+#### 7.2 Input History (Arrow Keys)
 
 **Test:**
 
@@ -415,7 +509,7 @@ ln -s test.txt test-link.txt
 - ✅ History persists across sessions
 - ✅ History file: ~/.gtlogs-history.json
 
-#### 6.3 Special Controls
+#### 7.3 Special Controls
 
 **Test in interactive mode:**
 
@@ -433,7 +527,7 @@ ln -s test.txt test-link.txt
 
 ---
 
-### 7. AWS Authentication
+### 8. AWS Authentication
 
 #### 7.1 Authenticated Profile
 
@@ -501,7 +595,7 @@ mv ~/.gtlogs-config.ini.backup ~/.gtlogs-config.ini
 
 ---
 
-### 8. Auto-Update Mechanism
+### 9. Auto-Update Mechanism
 
 #### 8.1 Version Check
 
@@ -567,7 +661,7 @@ mv ~/.gtlogs-config.ini.backup ~/.gtlogs-config.ini
 
 ---
 
-### 9. Performance Tests
+### 10. Performance Tests
 
 #### 9.1 Large File Upload
 

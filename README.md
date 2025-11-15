@@ -31,23 +31,28 @@ packages. This tool provides a complete solution for:
      as @exatogt automation with Files.com handles most Redis Software
      uploads automatically)
 
-## What's New in v1.3.0
+## What's New in v1.5.1
 
-**Automated Testing Infrastructure:**
+**Lightning-Fast Interactive Experience:**
 
-- Comprehensive test suite with 16 automated tests
-- Zero manual intervention required - fully automated
-- End-to-end (E2E) testing with real S3 bucket access
+- ⚡ **Auto-submit inputs** - No more waiting for Enter on Y/n or mode selection
+- 🎯 **Smart defaults** - Enter key defaults to "Y" for updates, "1" for upload mode
+- 🔄 **Instant feedback** - Type 'y', 'n', '1', 'u', '2', or 'd' and go immediately
+- 👋 **Graceful exits** - ESC/Ctrl+C handled consistently across all prompts
+- ✨ **Enhanced UI** - Cloud emoji icons and cleaner mode selection display
+
+**Previous Releases:**
+
+**v1.4.x - UX Polish:**
+- Fixed terminal cursor positioning in raw mode
+- Improved error message clarity with grouped equivalent choices
+- Enhanced mode selection with U/D keyboard shortcuts
+
+**v1.3.0 - Testing Infrastructure:**
+- Comprehensive test suite with 16 automated tests (100% pass rate)
+- End-to-end testing with real S3 bucket access
 - Automatic AWS SSO authentication in tests
-- 100% test pass rate validation
-- Professional development workflow with strict linting
-
-**Developer Experience:**
-
-- Strict markdown linting enforced across all documentation
-- MIT License for open collaboration
-- Complete CONTRIBUTING.md with guidelines and examples
-- Automated test suite: `python3 tests/test_suite.py`
+- MIT License and CONTRIBUTING.md for open collaboration
 
 ## Key Features
 
@@ -69,11 +74,18 @@ packages. This tool provides a complete solution for:
 
 **General Features:**
 
-- Interactive mode with mode selection (Upload/Download)
+- **Lightning-fast interactive mode** with instant-response prompts (v1.5.x)
+  - Auto-submit on Y/n choices - no Enter needed
+  - Smart defaults: Enter = Yes for updates, Upload for mode selection
+  - Visual mode selection with cloud emoji icons and U/D shortcuts
+- **Enhanced terminal experience** (v1.4.x+)
+  - Graceful ESC/Ctrl+C handling across all prompts
+  - Fixed cursor positioning in raw terminal mode
+  - Improved error messages with input validation
 - Input history with arrow key navigation
 - Automatic AWS SSO authentication
 - Configuration persistence for default profiles
-- Self-update capability with version checking
+- Self-update capability with automatic version checking (Ctrl+U)
 
 ## Installation
 

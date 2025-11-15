@@ -3,9 +3,34 @@
 This document outlines the development roadmap and feature priorities for
 GT Logs Helper.
 
-## Current Version: v1.3.0
+## Current Version: v1.5.1
 
-### Recently Completed (v1.3.0)
+### Recently Completed (v1.5.x - Lightning-Fast UX)
+
+- ✅ **Auto-Submit Prompts** - Instant response without Enter key
+  - Update prompt: Type 'y' or 'n' and go immediately
+  - Mode selection: Type '1', 'u', '2', or 'd' without waiting
+  - Smart defaults: Enter = Yes for updates, Upload for mode selection
+  - Invalid input still validates and re-prompts
+
+- ✅ **Enhanced Visual Design**
+  - Cloud emoji icons for upload (☁️ ⬆️ ) and download (☁️ ⬇️ )
+  - Clear mode selection with keyboard shortcuts
+  - Consistent graceful exits (ESC/Ctrl+C → "👋 Exiting...")
+
+### Previously Completed (v1.4.x - UX Polish)
+
+- ✅ **Terminal Experience Improvements**
+  - Fixed cursor positioning in raw terminal mode
+  - Proper carriage return handling for all outputs
+  - Consistent exit behavior across all prompts
+
+- ✅ **Input Validation Enhancements**
+  - Grouped equivalent choices in error messages (1/U or 2/D)
+  - Re-prompting on invalid input instead of canceling
+  - U/D keyboard shortcuts for mode selection
+
+### Previously Completed (v1.3.0 - Testing Infrastructure)
 
 - ✅ **Automated Testing Infrastructure** - Complete test suite with zero
   manual intervention
@@ -151,6 +176,22 @@ Ideas under evaluation for future versions:
 - ✅ Strict markdown linting across all documentation
 - ✅ MIT License and CONTRIBUTING.md
 
+### v1.4.x (UX Polish)
+
+- ✅ Terminal cursor positioning fixes in raw mode
+- ✅ Improved error message clarity with grouped choices
+- ✅ Enhanced mode selection with U/D keyboard shortcuts
+- ✅ Cloud emoji icons for visual clarity
+- ✅ Consistent ESC/Ctrl+C exit handling
+
+### v1.5.x (Lightning-Fast UX)
+
+- ✅ Auto-submit for update prompt (Y/n)
+- ✅ Auto-submit for mode selection (1/U/2/D)
+- ✅ Smart defaults (Enter = Yes/Upload)
+- ✅ Instant feedback on valid inputs
+- ✅ Enhanced exit message spacing
+
 ## Contributing Ideas
 
 Have a feature request or idea? Please:
@@ -174,4 +215,4 @@ based on:
 
 ---
 
-**Last Updated:** 2025-01-15 (v1.3.0 release)
+**Last Updated:** 2025-11-14 (v1.5.1 release)
