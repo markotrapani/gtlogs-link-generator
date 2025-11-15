@@ -5,10 +5,11 @@ Uploads and downloads Redis Support packages to/from S3 buckets.
 Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 """
 
-VERSION = "1.5.2"
+VERSION = "1.5.4"
 
 import argparse
 import configparser
+import hashlib
 import json
 import os
 import re
@@ -17,6 +18,7 @@ import sys
 import time
 import urllib.request
 import urllib.error
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, cast
 
@@ -349,11 +351,15 @@ class GTLogsHelper:
     BUCKET_BASE = "s3://gt-logs/exa-to-gt"
     CONFIG_FILE = os.path.expanduser("~/.gtlogs-config.ini")
     HISTORY_FILE = os.path.expanduser("~/.gtlogs-history.json")
+    STATE_FILE = os.path.expanduser("~/.gtlogs-state.json")
     MAX_HISTORY_ENTRIES = 20
+    MAX_RETRIES = 3
+    INITIAL_RETRY_DELAY = 1  # seconds
 
     def __init__(self):
         self.config = self._load_config()
         self.history = self._load_history()
+        self.current_state = None  # Active operation state
 
     def _load_config(self):
         """Load configuration from config file."""
@@ -436,6 +442,130 @@ class GTLogsHelper:
             List of historical values (most recent first)
         """
         return self.history.get(field_name, [])
+
+    # State management for resume functionality
+
+    def _load_state(self):
+        """Load operation state from state file."""
+        if os.path.exists(self.STATE_FILE):
+            try:
+                with open(self.STATE_FILE, 'r') as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, IOError):
+                return None
+        return None
+
+    def _save_state(self):
+        """Save operation state to state file."""
+        if self.current_state is None:
+            return
+
+        try:
+            # Update timestamp
+            self.current_state['updated_at'] = datetime.utcnow().isoformat() + 'Z'
+
+            with open(self.STATE_FILE, 'w') as f:
+                json.dump(self.current_state, f, indent=2)
+        except IOError as e:
+            print(f"⚠️  Warning: Could not save state: {e}")
+
+    def _clean_state(self):
+        """Remove state file after successful completion."""
+        if os.path.exists(self.STATE_FILE):
+            try:
+                os.remove(self.STATE_FILE)
+                self.current_state = None
+            except IOError as e:
+                print(f"⚠️  Warning: Could not remove state file: {e}")
+
+    def _create_operation_state(self, operation, destination, files):
+        """Create a new operation state.
+
+        Args:
+            operation: 'upload' or 'download'
+            destination: S3 destination path
+            files: List of file dictionaries with 'path', 'filename', 'size'
+
+        Returns:
+            State dictionary
+        """
+        timestamp = datetime.utcnow().isoformat() + 'Z'
+        session_id = f"{operation}_{destination.replace('s3://gt-logs/', '').replace('/', '_')}_{int(time.time())}"
+
+        file_entries = []
+        for f in files:
+            file_entries.append({
+                'path': f['path'],
+                'filename': f['filename'],
+                'size': f['size'],
+                'status': 'pending',
+                'attempts': 0,
+                'last_error': None,
+                'checksum': None
+            })
+
+        return {
+            'session_id': session_id,
+            'operation': operation,
+            'started_at': timestamp,
+            'updated_at': timestamp,
+            'destination': destination,
+            'files': file_entries
+        }
+
+    def _calculate_file_md5(self, filepath):
+        """Calculate MD5 checksum of a file (for verification)."""
+        md5_hash = hashlib.md5()
+        try:
+            with open(filepath, 'rb') as f:
+                # Read in chunks to handle large files
+                for chunk in iter(lambda: f.read(8192), b''):
+                    md5_hash.update(chunk)
+            return md5_hash.hexdigest()
+        except IOError:
+            return None
+
+    def check_and_prompt_resume(self):
+        """Check for incomplete operations and prompt user to resume.
+
+        Returns:
+            dict: State to resume, or None if no resume
+        """
+        state = self._load_state()
+
+        if not state:
+            return None
+
+        # Calculate progress
+        total = len(state['files'])
+        completed = sum(1 for f in state['files'] if f['status'] == 'completed')
+        failed = sum(1 for f in state['files'] if f['status'] == 'failed')
+        pending = sum(1 for f in state['files'] if f['status'] == 'pending')
+
+        print(f"\n⚠️  Found incomplete {state['operation']} operation:")
+        print(f"   Destination: {state['destination']}")
+        print(f"   Progress: {completed}/{total} completed, {failed} failed, {pending} pending")
+        print(f"   Started: {state['started_at']}")
+
+        # Prompt to resume
+        try:
+            response = input("\nResume this operation? [Y/n]: ").strip().lower()
+
+            if response in ['', 'y', 'yes']:
+                print("✅ Resuming operation...\n")
+                return state
+            else:
+                # Ask if they want to delete the state file
+                response = input("Delete state file and start fresh? [Y/n]: ").strip().lower()
+                if response in ['', 'y', 'yes']:
+                    self._clean_state()
+                    print("✅ State file deleted\n")
+                else:
+                    print("⚠️  State file preserved. Use --clean-state to remove it.\n")
+                return None
+        except (KeyboardInterrupt, EOFError):
+            print("\n\n⚠️  State file preserved. Use --clean-state to remove it.\n")
+            return None
 
     @staticmethod
     def validate_zendesk_id(zd_id):
@@ -693,6 +823,87 @@ class GTLogsHelper:
             print(f"❌ Error during AWS SSO login: {e}\n")
             return False
 
+    def verify_s3_upload(self, s3_path, local_path, aws_profile):
+        """Verify file was uploaded successfully to S3.
+
+        Args:
+            s3_path: Full S3 path (s3://bucket/key)
+            local_path: Local file path
+            aws_profile: AWS profile to use
+
+        Returns:
+            True if file exists in S3 and size matches, False otherwise
+        """
+        try:
+            # Check if file exists in S3 and get its size
+            cmd = f"aws s3 ls {s3_path} --profile {aws_profile}"
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+
+            if result.returncode != 0:
+                return False
+
+            # Parse S3 ls output: "2025-11-14 10:30:00    1048576 filename.tar.gz"
+            # Extract file size
+            try:
+                parts = result.stdout.strip().split()
+                if len(parts) >= 3:
+                    s3_size = int(parts[2])
+                    local_size = os.path.getsize(local_path)
+                    return s3_size == local_size
+            except (ValueError, OSError):
+                pass
+
+            return False
+        except (subprocess.TimeoutExpired, Exception):
+            return False
+
+    def upload_with_retry(self, aws_command, s3_path=None, local_path=None,
+                         aws_profile=None, max_retries=None, verify=False):
+        """Execute S3 upload with automatic retry and exponential backoff.
+
+        Args:
+            aws_command: AWS CLI command to execute
+            s3_path: Full S3 destination path (for verification)
+            local_path: Local file path (for verification)
+            aws_profile: AWS profile (for verification)
+            max_retries: Maximum retry attempts (defaults to self.MAX_RETRIES)
+            verify: Whether to verify upload after completion
+
+        Returns:
+            True if successful, False otherwise
+        """
+        if max_retries is None:
+            max_retries = self.MAX_RETRIES
+
+        for attempt in range(1, max_retries + 1):
+            success = self.execute_s3_upload(aws_command)
+
+            if success:
+                # Optionally verify upload
+                if verify and s3_path and local_path and aws_profile:
+                    print("   🔍 Verifying upload...")
+                    if self.verify_s3_upload(s3_path, local_path, aws_profile):
+                        print("   ✅ Upload verified")
+                        return True
+                    else:
+                        print("   ⚠️  Verification failed - file may not have uploaded correctly")
+                        if attempt < max_retries:
+                            success = False  # Force retry
+                        else:
+                            return False
+                else:
+                    return True
+
+            if not success and attempt < max_retries:
+                delay = min(self.INITIAL_RETRY_DELAY * (2 ** (attempt - 1)), 60)  # Max 60s
+                print(f"   ⚠️  Upload failed. Retrying in {delay}s... (attempt {attempt}/{max_retries})")
+                time.sleep(delay)
+            elif not success:
+                print(f"   ❌ Upload failed after {max_retries} attempts")
+                return False
+
+        return False
+
     @staticmethod
     def execute_s3_upload(aws_command):
         """Execute the AWS S3 cp command with progress tracking.
@@ -770,7 +981,8 @@ class GTLogsHelper:
             print(f"\n❌ Error during upload: {e}\n")
             return False
 
-    def execute_batch_upload(self, file_paths, zd_id, jira_id, aws_profile):
+    def execute_batch_upload(self, file_paths, zd_id, jira_id, aws_profile,
+                            max_retries=None, verify=False, save_state=True):
         """Execute batch upload of multiple files to the same S3 destination.
 
         Args:
@@ -778,6 +990,9 @@ class GTLogsHelper:
             zd_id: Zendesk ticket ID (formatted)
             jira_id: Jira ticket ID (formatted, can be None)
             aws_profile: AWS profile to use
+            max_retries: Maximum retry attempts per file (default: 3)
+            verify: Verify uploads after completion (default: False)
+            save_state: Save state for resume capability (default: True)
 
         Returns:
             tuple: (success_count, failure_count, results)
@@ -787,12 +1002,32 @@ class GTLogsHelper:
         failure_count = 0
         results = []
 
+        # Generate S3 path (same for all files)
+        s3_path = self.generate_s3_path(zd_id, jira_id)
+
+        # Create or load state
+        if save_state:
+            files_info = []
+            for fp in file_paths:
+                try:
+                    files_info.append({
+                        'path': fp,
+                        'filename': os.path.basename(fp),
+                        'size': os.path.getsize(fp)
+                    })
+                except OSError:
+                    files_info.append({
+                        'path': fp,
+                        'filename': os.path.basename(fp),
+                        'size': 0
+                    })
+
+            self.current_state = self._create_operation_state('upload', s3_path, files_info)
+            self._save_state()
+
         print(f"\n{'='*70}")
         print(f"Batch Upload: {total_files} file(s)")
         print(f"{'='*70}\n")
-
-        # Generate S3 path (same for all files)
-        s3_path = self.generate_s3_path(zd_id, jira_id)
         print(f"S3 Destination: {s3_path}\n")
 
         for i, file_path in enumerate(file_paths, 1):
@@ -800,18 +1035,40 @@ class GTLogsHelper:
             print(f"[{i}/{total_files}] Uploading: {filename}")
             print(f"            From: {file_path}")
 
-            # Generate command for this specific file
-            cmd, _ = self.generate_aws_command(zd_id, jira_id, file_path, aws_profile)
+            # Update state
+            if save_state and self.current_state:
+                self.current_state['files'][i-1]['status'] = 'in_progress'
+                self.current_state['files'][i-1]['attempts'] += 1
+                self._save_state()
 
-            # Execute upload
-            success = self.execute_s3_upload(cmd)
+            # Generate command and S3 destination for this specific file
+            cmd, file_s3_path = self.generate_aws_command(zd_id, jira_id, file_path, aws_profile)
+
+            # Execute upload with retry
+            success = self.upload_with_retry(
+                cmd,
+                s3_path=file_s3_path,
+                local_path=file_path,
+                aws_profile=aws_profile,
+                max_retries=max_retries,
+                verify=verify
+            )
 
             if success:
                 success_count += 1
                 results.append(('success', filename))
+                if save_state and self.current_state:
+                    self.current_state['files'][i-1]['status'] = 'completed'
+                    if verify:
+                        self.current_state['files'][i-1]['checksum'] = self._calculate_file_md5(file_path)
+                    self._save_state()
             else:
                 failure_count += 1
                 results.append(('failure', filename))
+                if save_state and self.current_state:
+                    self.current_state['files'][i-1]['status'] = 'failed'
+                    self.current_state['files'][i-1]['last_error'] = 'Upload failed after retries'
+                    self._save_state()
 
             # Add separator between uploads (except after last one)
             if i < total_files:
@@ -829,6 +1086,10 @@ class GTLogsHelper:
             for status, filename in results:
                 if status == 'failure':
                     print(f"  - {filename}")
+        else:
+            # Clean up state on complete success
+            if save_state:
+                self._clean_state()
 
         print(f"{'='*70}\n")
 
@@ -836,7 +1097,7 @@ class GTLogsHelper:
 
     def execute_directory_upload(self, dir_path, zd_id, jira_id, aws_profile,
                                  include_patterns=None, exclude_patterns=None,
-                                 dry_run=False):
+                                 dry_run=False, max_retries=None, verify=False):
         """Execute upload of an entire directory to S3, preserving structure.
 
         Args:
@@ -847,6 +1108,8 @@ class GTLogsHelper:
             include_patterns: List of glob patterns to include
             exclude_patterns: List of glob patterns to exclude
             dry_run: If True, only show what would be uploaded without uploading
+            max_retries: Maximum retry attempts per file (default: 3)
+            verify: Verify uploads after completion (default: False)
 
         Returns:
             tuple: (success_count, failure_count, results)
@@ -934,8 +1197,15 @@ class GTLogsHelper:
             # Build upload command
             cmd = f'aws s3 cp "{file_path}" "{s3_full_path}" --profile {aws_profile}'
 
-            # Execute upload
-            success = self.execute_s3_upload(cmd)
+            # Execute upload with retry
+            success = self.upload_with_retry(
+                cmd,
+                s3_path=s3_full_path,
+                local_path=file_path,
+                aws_profile=aws_profile,
+                max_retries=max_retries,
+                verify=verify
+            )
 
             if success:
                 success_count += 1
@@ -1988,9 +2258,33 @@ Examples:
     parser.add_argument('-o', '--output', dest='output_path',
                        help='Output directory for downloads (default: current directory)')
 
+    # Resume and retry arguments
+    parser.add_argument('--max-retries', type=int, default=3,
+                       help='Maximum retry attempts for failed uploads/downloads (default: 3)')
+    parser.add_argument('--verify', action='store_true',
+                       help='Verify uploads after completion (checks file size in S3)')
+    parser.add_argument('--no-resume', action='store_true',
+                       help='Ignore any saved state and start fresh')
+    parser.add_argument('--clean-state', action='store_true',
+                       help='Clean up state file and exit')
+
     args = parser.parse_args()
 
     helper = GTLogsHelper()
+
+    # Handle clean-state command
+    if args.clean_state:
+        if os.path.exists(helper.STATE_FILE):
+            helper._clean_state()
+            print(f"✅ State file cleaned: {helper.STATE_FILE}")
+        else:
+            print(f"ℹ️  No state file found: {helper.STATE_FILE}")
+        return 0
+
+    # Check for resume (unless --no-resume is specified)
+    resume_state = None
+    if not args.no_resume and not args.download_path:  # Don't check for download mode yet
+        resume_state = helper.check_and_prompt_resume()
 
     # Handle config commands
     if args.set_profile:
@@ -2105,7 +2399,9 @@ Examples:
                 used_profile,
                 include_patterns=args.include_patterns,
                 exclude_patterns=args.exclude_patterns,
-                dry_run=args.dry_run
+                dry_run=args.dry_run,
+                max_retries=args.max_retries,
+                verify=args.verify
             )
 
             return 0 if failure_count == 0 else 1
@@ -2202,7 +2498,9 @@ Examples:
 
                 # Execute batch upload
                 success_count, failure_count, _ = helper.execute_batch_upload(
-                    file_paths, zd_formatted, jira_formatted, used_profile
+                    file_paths, zd_formatted, jira_formatted, used_profile,
+                    max_retries=args.max_retries,
+                    verify=args.verify
                 )
                 return 0 if failure_count == 0 else 1
             else:
