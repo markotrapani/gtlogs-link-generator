@@ -5,7 +5,7 @@ Uploads and downloads Redis Support packages to/from S3 buckets.
 Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 """
 
-VERSION = "1.3.5"
+VERSION = "1.3.6"
 
 import argparse
 import configparser
@@ -905,7 +905,9 @@ def input_with_esc_detection(prompt: str, history_list: Optional[list] = None) -
 
             # Enter key
             elif ch in ('\r', '\n'):
-                print()
+                # Explicitly output carriage return + newline for proper cursor positioning in raw mode
+                sys.stdout.write('\r\n')
+                sys.stdout.flush()
                 result = ''.join(user_input)
                 # Check for exit commands
                 if result.lower() in ['exit', 'quit', 'q']:
@@ -914,12 +916,16 @@ def input_with_esc_detection(prompt: str, history_list: Optional[list] = None) -
 
             # Ctrl+C
             elif ch == '\x03':
-                print()
+                # Explicitly output carriage return + newline for proper cursor positioning in raw mode
+                sys.stdout.write('\r\n')
+                sys.stdout.flush()
                 raise KeyboardInterrupt
 
             # Ctrl+U (update check)
             elif ch == '\x15':
-                print()
+                # Explicitly output carriage return + newline for proper cursor positioning in raw mode
+                sys.stdout.write('\r\n')
+                sys.stdout.flush()
                 raise UpdateCheckException()
 
             # Regular printable characters
