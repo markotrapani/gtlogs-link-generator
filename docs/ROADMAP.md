@@ -72,7 +72,30 @@ GT Logs Helper.
 
 ### High Priority
 
-These features address common user requests and workflow improvements:
+**Documentation Improvements:**
+
+- **[ ] README Overhaul** - Restructure and streamline main documentation
+  - Current README is too long and overwhelming (~1300 lines)
+  - Sections not in most intuitive order
+  - Move detailed content to wiki pages
+  - Create concise, scannable README focused on:
+    - Quick overview (what/why)
+    - Installation (< 10 lines)
+    - Quick start (3 examples max)
+    - Links to wiki for details
+  - Improve section ordering:
+    1. Overview/Purpose
+    2. Installation
+    3. Quick Start
+    4. Key Features
+    5. Links to wiki pages
+  - Goal: Reduce README to ~300-400 lines
+  - Move detailed content to wiki:
+    - Usage Examples wiki page
+    - Command Reference wiki page
+    - Getting Started wiki page
+
+**Feature Development:**
 
 - **[ ] Directory Upload** - Upload entire directories recursively
   - Preserve directory structure in S3
@@ -215,4 +238,4 @@ based on:
 
 ---
 
-**Last Updated:** 2025-11-14 (v1.5.1 release)
+**Last Updated:** 2025-11-14 (v1.5.1 release + README overhaul planning)
