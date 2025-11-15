@@ -5,7 +5,7 @@ Uploads and downloads Redis Support packages to/from S3 buckets.
 Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 """
 
-VERSION = "1.3.0"
+VERSION = "1.3.1"
 
 import argparse
 import configparser
@@ -969,18 +969,45 @@ def interactive_mode():
     print("  2. Download from S3 (retrieve files from existing paths)")
     print()
 
-    while True:
-        mode_input = input_with_esc_detection("Enter choice (1 or 2): ").strip()
-        check_exit_input(mode_input)
+    try:
+        while True:
+            mode_input = input_with_esc_detection("Enter choice (1 or 2): ").strip()
+            check_exit_input(mode_input)
 
-        if mode_input == "1":
-            interactive_upload_mode()
-            break
-        elif mode_input == "2":
-            interactive_download_mode()
-            break
+            if mode_input == "1":
+                interactive_upload_mode()
+                break
+            elif mode_input == "2":
+                interactive_download_mode()
+                break
+            else:
+                print("❌ Please enter 1 or 2\n")
+        return 0
+    except UserExitException:
+        print("👋 Exiting...\n")
+        return 0
+    except UpdateCheckException:
+        print("🔍 Checking for updates...")
+        update_info = check_for_updates()
+        if update_info and update_info['available']:
+            if prompt_for_update(update_info):
+                # Update was installed, exit so user can restart
+                return 0
+            else:
+                # User chose 'n', return to interactive mode
+                print("Returning to interactive mode...\n")
+                return interactive_mode()
+        elif update_info:
+            print(f"✓ You're up to date! (v{update_info['current_version']})\n")
+            print("Returning to interactive mode...\n")
+            return interactive_mode()
         else:
-            print("❌ Please enter 1 or 2\n")
+            print("⚠️  Could not check for updates (offline or API error)\n")
+            print("Returning to interactive mode...\n")
+            return interactive_mode()
+    except KeyboardInterrupt:
+        print("\n\n👋 Exiting...\n")
+        return 0
 
 
 def interactive_upload_mode():
