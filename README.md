@@ -2,7 +2,7 @@
 
 A lightning-fast command-line tool for uploading and downloading Redis Support packages to/from AWS S3. Streamline your support workflow with automatic authentication, batch operations, and intelligent path generation.
 
-**Current Version:** v1.6.0 | **[View Wiki](https://github.com/markotrapani/gtlogs-helper/wiki)** | **[Changelog](#whats-new)**
+**Current Version:** v1.6.1 | **[View Wiki](https://github.com/markotrapani/gtlogs-helper/wiki)** | **[Changelog](#whats-new)**
 
 ---
 
@@ -298,6 +298,9 @@ chmod +x gtlogs-helper.py
 # Configuration
 ./gtlogs-helper.py --set-profile gt-logs
 ./gtlogs-helper.py --show-config
+
+# Debug & Troubleshooting
+./gtlogs-helper.py --debug  # Show timing and authentication details
 
 # Version/Help
 ./gtlogs-helper.py --version
