@@ -398,6 +398,7 @@ ln -s test.txt test-link.txt
 ```
 
 Expected auto-submit behavior:
+
 - Type 'y' → Immediately proceeds with update (no Enter needed)
 - Type 'Y' → Immediately proceeds with update (no Enter needed)
 - Type 'n' → Immediately cancels update (no Enter needed)
@@ -414,6 +415,7 @@ Expected auto-submit behavior:
 ```
 
 Expected auto-submit behavior:
+
 - Type '1' → Immediately enters Upload mode (no Enter needed)
 - Type 'u' or 'U' → Immediately enters Upload mode (no Enter needed)
 - Type '2' → Immediately enters Download mode (no Enter needed)
@@ -423,6 +425,7 @@ Expected auto-submit behavior:
 - Press ESC → Shows "👋 Exiting..." and exits gracefully
 
 **Verification:**
+
 - ✅ Y/n choices auto-submit instantly
 - ✅ 1/U/2/D choices auto-submit instantly
 - ✅ Enter key uses smart defaults (Y for update, 1 for upload)
@@ -442,11 +445,13 @@ Your choice: x[Enter]
 ```
 
 Expected behavior:
+
 - All output after user input should be left-aligned
 - No weird indentation or tabbing over
 - Proper carriage returns (`\r\n`) in raw terminal mode
 
 **Verification:**
+
 - ✅ Error messages appear left-aligned
 - ✅ Progress indicators appear left-aligned
 - ✅ No cursor positioning artifacts
@@ -461,7 +466,8 @@ Expected behavior:
 ```
 
 Expected display:
-```
+
+```text
 Select operation mode:
 ☁️ ⬆️  1 or U: UPLOAD to S3 (generate links and upload files)
 ☁️ ⬇️  2 or D: DOWNLOAD from S3 (retrieve files from existing paths)
@@ -470,6 +476,7 @@ Your choice:
 ```
 
 **Verification:**
+
 - ✅ Cloud emoji icons display correctly
 - ✅ Proper spacing between emojis
 - ✅ Clear visual distinction between upload/download
