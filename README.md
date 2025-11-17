@@ -332,6 +332,15 @@ python3 tests/test_suite.py
 
 ## What's New
 
+### v1.6.1 - Performance & UX Improvements
+
+- ⚡ **Fast SSO auth check** - Local cache check (<100ms) before network call, dramatically faster authentication
+- 🐛 **Debug flag** - New `--debug` flag shows timing and authentication details when troubleshooting
+- 🔗 **Zendesk URL support** - Paste ticket URLs directly: `https://redislabs.zendesk.com/agent/tickets/150002`
+- 📍 **Full path display** - Downloads now show complete absolute path to saved files
+- 🔧 **Type safety** - Fixed all Pylance warnings for better IDE support
+- 📅 **Datetime fix** - Resolved deprecation warning for Python 3.11+ compatibility
+
 ### v1.6.0 - Upload/Download Resume with Retry and Verification
 
 - 🔄 **Resume capability** - Automatically resume interrupted uploads/downloads

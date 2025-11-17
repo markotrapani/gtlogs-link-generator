@@ -5,7 +5,7 @@ Uploads and downloads Redis Support packages to/from S3 buckets.
 Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 """
 
-VERSION = "1.6.0"
+VERSION = "1.6.1"
 
 import argparse
 import configparser
@@ -18,7 +18,7 @@ import sys
 import time
 import urllib.request
 import urllib.error
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, cast
 
@@ -302,7 +302,7 @@ def format_size(bytes_size):
     return f"{bytes_size:.1f} PB"
 
 
-def display_progress_bar(completed, total, speed_str="", bar_length=40):
+def display_progress_bar(completed: int, total: int, speed_str: str = "", bar_length: int = 40) -> None:
     """Display a progress bar.
 
     Args:
@@ -363,10 +363,11 @@ class GTLogsHelper:
     MAX_RETRIES = 3
     INITIAL_RETRY_DELAY = 1  # seconds
 
-    def __init__(self):
+    def __init__(self, debug=False):
         self.config = self._load_config()
         self.history = self._load_history()
         self.current_state = None  # Active operation state
+        self.debug = debug  # Enable debug output
 
     def _load_config(self):
         """Load configuration from config file."""
@@ -678,8 +679,8 @@ class GTLogsHelper:
         return expanded_path
 
     @staticmethod
-    def discover_files_in_directory(dir_path: str, include_patterns: list = None,
-                                   exclude_patterns: list = None):
+    def discover_files_in_directory(dir_path: str, include_patterns: Optional[list] = None,
+                                   exclude_patterns: Optional[list] = None):
         """Recursively discover all files in a directory with pattern filtering.
 
         Args:
@@ -772,13 +773,119 @@ class GTLogsHelper:
         return cmd, s3_full_path
 
     @staticmethod
-    def check_aws_authentication(aws_profile):
+    def check_sso_cache(aws_profile, debug=False):
+        """Check if SSO token exists in local cache and is not expired.
+
+        This is a fast local check that avoids network calls.
+
+        Args:
+            aws_profile: AWS profile name to check
+            debug: Enable debug output
+
+        Returns:
+            True if valid cached token exists, False if no cache or expired, None if unsure
+        """
+        start_time = time.time()
+        try:
+            # Read AWS config to find SSO session
+            config_path = Path.home() / '.aws' / 'config'
+            if not config_path.exists():
+                if debug:
+                    print(f"   [DEBUG] No AWS config file found at {config_path} ({time.time() - start_time:.3f}s)")
+                return None
+
+            config = configparser.ConfigParser()
+            config.read(config_path)
+
+            # Profile name in config file is "profile <name>" for non-default profiles
+            profile_section = f'profile {aws_profile}' if aws_profile != 'default' else 'default'
+
+            if profile_section not in config:
+                if debug:
+                    print(f"   [DEBUG] Profile '{aws_profile}' not found in config ({time.time() - start_time:.3f}s)")
+                return None
+
+            # Check if this is an SSO profile
+            if 'sso_session' not in config[profile_section]:
+                if debug:
+                    print(f"   [DEBUG] Profile '{aws_profile}' is not an SSO profile ({time.time() - start_time:.3f}s)")
+                return None
+
+            # Check SSO cache directory
+            cache_dir = Path.home() / '.aws' / 'sso' / 'cache'
+            if not cache_dir.exists():
+                if debug:
+                    print(f"   [DEBUG] SSO cache directory not found ({time.time() - start_time:.3f}s)")
+                return False
+
+            # Check all cache files for valid tokens
+            now = datetime.now(timezone.utc)
+            for cache_file in cache_dir.glob('*.json'):
+                try:
+                    with open(cache_file) as f:
+                        cache_data = json.load(f)
+
+                    # Check if token exists and hasn't expired
+                    if 'accessToken' in cache_data and 'expiresAt' in cache_data:
+                        # expiresAt is in ISO format like "2025-01-17T12:34:56Z"
+                        expires_at = datetime.fromisoformat(cache_data['expiresAt'].replace('Z', '+00:00'))
+
+                        if expires_at > now:
+                            if debug:
+                                print(f"   [DEBUG] Valid SSO token found in cache (expires {cache_data['expiresAt']}) ({time.time() - start_time:.3f}s)")
+                            return True
+                except (json.JSONDecodeError, KeyError, ValueError):
+                    # Skip invalid cache files
+                    continue
+
+            if debug:
+                print(f"   [DEBUG] No valid SSO tokens found in cache ({time.time() - start_time:.3f}s)")
+            return False
+
+        except Exception as e:
+            if debug:
+                print(f"   [DEBUG] Error checking SSO cache: {e} ({time.time() - start_time:.3f}s)")
+            return None
+
+    @staticmethod
+    def check_aws_authentication(aws_profile, debug=False):
         """Check if AWS profile is authenticated.
+
+        Uses a two-step approach:
+        1. Fast local SSO cache check (no network call)
+        2. Network call to AWS STS if cache check is inconclusive
+
+        Args:
+            aws_profile: AWS profile name to check
+            debug: Enable debug output
 
         Returns:
             True if authenticated, False otherwise
         """
+        overall_start = time.time()
+        if debug:
+            print("   [DEBUG] Starting authentication check...")
+
         try:
+            # Step 1: Check SSO cache first (fast, no network)
+            cache_start = time.time()
+            cache_result = GTLogsHelper.check_sso_cache(aws_profile, debug=debug)
+            cache_time = time.time() - cache_start
+
+            if cache_result is True:
+                if debug:
+                    print(f"   [DEBUG] ✓ Authenticated via SSO cache check (total: {time.time() - overall_start:.3f}s)")
+                return True
+            elif cache_result is False:
+                if debug:
+                    print(f"   [DEBUG] ✗ SSO cache expired or invalid (cache check: {cache_time:.3f}s)")
+                return False
+
+            # Step 2: Cache check inconclusive, fall back to network call
+            if debug:
+                print(f"   [DEBUG] SSO cache check inconclusive ({cache_time:.3f}s), trying network call...")
+
+            network_start = time.time()
             cmd = ['aws', 'sts', 'get-caller-identity']
             if aws_profile:
                 cmd.extend(['--profile', aws_profile])
@@ -787,8 +894,9 @@ class GTLogsHelper:
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                timeout=10
+                timeout=5  # Reduced from 10s to 5s
             )
+            network_time = time.time() - network_start
 
             # Check if profile doesn't exist
             if result.returncode != 0 and b"could not be found" in result.stderr.lower():
@@ -796,9 +904,18 @@ class GTLogsHelper:
                 print(f"   Please configure it with: aws configure sso --profile {aws_profile}")
                 print(f"   Or use a different profile with -p flag")
 
-            return result.returncode == 0
+            auth_status = result.returncode == 0
+            if debug:
+                status_symbol = "✓" if auth_status else "✗"
+                print(f"   [DEBUG] {status_symbol} Network auth check complete (network: {network_time:.3f}s, total: {time.time() - overall_start:.3f}s)")
+
+            return auth_status
+
         except subprocess.TimeoutExpired:
-            print("⚠️  Timeout while checking AWS authentication")
+            timeout_msg = f"⚠️  Timeout while checking AWS authentication"
+            if debug:
+                timeout_msg += f" (after {time.time() - overall_start:.3f}s)"
+            print(timeout_msg)
             return False
         except FileNotFoundError:
             print("❌ AWS CLI not found. Please install AWS CLI first.")
@@ -946,20 +1063,21 @@ class GTLogsHelper:
             output_lines = []
 
             # Read output line by line
-            for line in iter(process.stdout.readline, ''):
-                output_lines.append(line)
+            if process.stdout:
+                for line in iter(process.stdout.readline, ''):
+                    output_lines.append(line)
 
-                # Parse progress from AWS CLI output
-                completed, total, speed_str = parse_aws_progress(line)
+                    # Parse progress from AWS CLI output
+                    completed, total, speed_str = parse_aws_progress(line)
 
-                if completed and total:
-                    # Display progress bar
-                    display_progress_bar(completed, total, speed_str)
-                    last_progress = (completed, total, speed_str)
-                elif last_progress:
-                    # Continue showing last known progress
-                    completed, total, speed_str = last_progress
-                    display_progress_bar(completed, total, speed_str)
+                    if completed and total:
+                        # Display progress bar
+                        display_progress_bar(completed, total, speed_str or "")
+                        last_progress = (completed, total, speed_str or "")
+                    elif last_progress:
+                        # Continue showing last known progress
+                        completed, total, speed_str = last_progress
+                        display_progress_bar(completed, total, speed_str)
 
             # Wait for process to complete
             return_code = process.wait()
@@ -1102,9 +1220,9 @@ class GTLogsHelper:
 
         return success_count, failure_count, results
 
-    def execute_directory_upload(self, dir_path, zd_id, jira_id, aws_profile,
-                                 include_patterns=None, exclude_patterns=None,
-                                 dry_run=False, max_retries=None, verify=False):
+    def execute_directory_upload(self, dir_path: str, zd_id: str, jira_id: Optional[str], aws_profile: str,
+                                 include_patterns: Optional[list] = None, exclude_patterns: Optional[list] = None,
+                                 dry_run: bool = False, max_retries: Optional[int] = None, verify: bool = False):
         """Execute upload of an entire directory to S3, preserving structure.
 
         Args:
@@ -1175,7 +1293,7 @@ class GTLogsHelper:
         # Ask for confirmation if not dry run
         print("Proceed with upload? (Y/n): ", end='', flush=True)
         try:
-            response = input_with_esc_detection(prompt="", allow_empty=True)
+            response = input_with_esc_detection(prompt="")
             if response and response.lower() not in ['y', 'yes', '']:
                 print("\n❌ Upload cancelled\n")
                 return 0, 0, []
@@ -1245,15 +1363,46 @@ class GTLogsHelper:
     # ========== DOWNLOAD FUNCTIONALITY ==========
 
     @staticmethod
-    def parse_s3_path(s3_path):
+    def extract_ticket_id_from_url(url: str) -> Optional[str]:
+        """Extract Zendesk ticket ID from a Zendesk URL.
+
+        Args:
+            url: Zendesk ticket URL (e.g., https://redislabs.zendesk.com/agent/tickets/150002)
+
+        Returns:
+            Ticket ID string (e.g., "150002") or None if not a valid Zendesk URL
+        """
+        # Match Zendesk URL patterns
+        # Examples:
+        #   https://redislabs.zendesk.com/agent/tickets/150002
+        #   https://redislabs.zendesk.com/tickets/150002
+        #   https://company.zendesk.com/agent/tickets/12345
+        zendesk_pattern = r'zendesk\.com/(?:agent/)?tickets/(\d+)'
+        match = re.search(zendesk_pattern, url)
+        if match:
+            return match.group(1)
+        return None
+
+    @staticmethod
+    def parse_s3_path(s3_path: str):
         """Parse an S3 path or partial path to extract bucket and key.
 
         Args:
-            s3_path: Full S3 path or partial path (e.g., ZD-145980)
+            s3_path: Full S3 path, partial path (e.g., ZD-145980), or Zendesk URL
 
         Returns:
             tuple: (bucket, key) or (None, None) if invalid
         """
+        # Handle Zendesk URLs - extract ticket ID first
+        if "zendesk.com" in s3_path.lower():
+            ticket_id = GTLogsHelper.extract_ticket_id_from_url(s3_path)
+            if ticket_id:
+                # Treat it as a ticket ID input
+                s3_path = ticket_id
+            else:
+                # Invalid Zendesk URL
+                return None, None
+
         # Handle full S3 paths
         if s3_path.startswith("s3://"):
             parts = s3_path[5:].split("/", 1)
@@ -1280,7 +1429,8 @@ class GTLogsHelper:
             pass
 
         # Try to parse as direct bucket/key format
-        if "/" in s3_path and not s3_path.startswith("/"):
+        # IMPORTANT: Only do this if it doesn't look like a URL
+        if "/" in s3_path and not s3_path.startswith("/") and not s3_path.startswith("http"):
             parts = s3_path.split("/", 1)
             return parts[0], parts[1]
 
@@ -1356,6 +1506,9 @@ class GTLogsHelper:
         if local_dir and not os.path.exists(local_dir):
             os.makedirs(local_dir, exist_ok=True)
 
+        # Convert to absolute path for display
+        abs_path = os.path.abspath(local_path)
+
         # Build AWS CLI command
         cmd = f'aws s3 cp "s3://{bucket}/{key}" "{local_path}" --profile {aws_profile}'
 
@@ -1365,7 +1518,7 @@ class GTLogsHelper:
 
             print(f"\n📥 Downloading: {filename}")
             print(f"   Source: s3://{bucket}/{key}")
-            print(f"   Destination: {local_path}\n")
+            print(f"   Destination: {abs_path}\n")
 
             # Use Popen to capture output in real-time
             process = subprocess.Popen(
@@ -1381,20 +1534,21 @@ class GTLogsHelper:
             output_lines = []
 
             # Read output line by line
-            for line in iter(process.stdout.readline, ''):
-                output_lines.append(line)
+            if process.stdout:
+                for line in iter(process.stdout.readline, ''):
+                    output_lines.append(line)
 
-                # Parse progress from AWS CLI output
-                completed, total, speed_str = parse_aws_progress(line)
+                    # Parse progress from AWS CLI output
+                    completed, total, speed_str = parse_aws_progress(line)
 
-                if completed and total:
-                    # Display progress bar
-                    display_progress_bar(completed, total, speed_str)
-                    last_progress = (completed, total, speed_str)
-                elif last_progress:
-                    # Continue showing last known progress
-                    completed, total, speed_str = last_progress
-                    display_progress_bar(completed, total, speed_str)
+                    if completed and total:
+                        # Display progress bar
+                        display_progress_bar(completed, total, speed_str or "")
+                        last_progress = (completed, total, speed_str or "")
+                    elif last_progress:
+                        # Continue showing last known progress
+                        completed, total, speed_str = last_progress
+                        display_progress_bar(completed, total, speed_str)
 
             # Wait for process to complete
             return_code = process.wait()
@@ -1407,7 +1561,7 @@ class GTLogsHelper:
             print()  # New line after progress bar
 
             if return_code == 0:
-                print(f"✅ Download successful! File saved to: {local_path}\n")
+                print(f"✅ Download successful! File saved to: {abs_path}\n")
                 return True
             else:
                 print(f"❌ Download failed with exit code {return_code}\n")
@@ -1682,7 +1836,7 @@ def check_exit_input(user_input):
     return False
 
 
-def interactive_mode():
+def interactive_mode(debug=False):
     """Run the helper in interactive mode with mode selection."""
     print("\n" + "="*70)
     print(f"GT Logs Helper v{VERSION} - Interactive Mode")
@@ -1710,10 +1864,10 @@ def interactive_mode():
                 mode_input = '1'
 
             if mode_input in ["1", "u"]:
-                interactive_upload_mode()
+                interactive_upload_mode(debug=debug)
                 break
             elif mode_input in ["2", "d"]:
-                interactive_download_mode()
+                interactive_download_mode(debug=debug)
                 break
             else:
                 print("❌ Invalid choice. Please enter 1/U or 2/D\n")
@@ -1731,7 +1885,7 @@ def interactive_mode():
             else:
                 # User chose 'n', return to interactive mode
                 print("Returning to interactive mode...\n")
-                return interactive_mode()
+                return interactive_mode(debug=debug)
         elif update_info:
             print(f"✓ You're up to date! (v{update_info['current_version']})\n")
             print("Returning to interactive mode...\n")
@@ -1745,9 +1899,9 @@ def interactive_mode():
         return 0
 
 
-def interactive_upload_mode():
+def interactive_upload_mode(debug=False):
     """Run the upload functionality in interactive mode."""
-    generator = GTLogsHelper()
+    generator = GTLogsHelper(debug=debug)
 
     print("\n" + "-"*50)
     print("Upload Mode - Generate S3 URLs and upload files")
@@ -1898,7 +2052,7 @@ def interactive_upload_mode():
                 # Default to 'yes' if user just presses Enter
                 if execute_now == '' or execute_now in ['y', 'yes']:
                     # Check authentication
-                    is_authenticated = generator.check_aws_authentication(aws_profile)
+                    is_authenticated = generator.check_aws_authentication(aws_profile, debug=generator.debug)
 
                     if not is_authenticated:
                         print(f"\n⚠️  AWS profile '{aws_profile}' is not authenticated")
@@ -1942,7 +2096,7 @@ def interactive_upload_mode():
                 # Default to 'yes' if user just presses Enter
                 if execute_now == '' or execute_now in ['y', 'yes']:
                     # Check authentication
-                    is_authenticated = generator.check_aws_authentication(aws_profile)
+                    is_authenticated = generator.check_aws_authentication(aws_profile, debug=generator.debug)
 
                     if not is_authenticated:
                         print(f"\n⚠️  AWS profile '{aws_profile}' is not authenticated")
@@ -1988,7 +2142,7 @@ def interactive_upload_mode():
             else:
                 # User chose 'n', return to interactive mode
                 print("Returning to interactive mode...\n")
-                return interactive_mode()
+                return interactive_mode(debug=debug)
         elif update_info:
             print(f"✓ You're up to date! (v{update_info['current_version']})\n")
             print("Returning to interactive mode...\n")
@@ -2011,9 +2165,9 @@ def interactive_upload_mode():
         return 1
 
 
-def interactive_download_mode():
+def interactive_download_mode(debug=False):
     """Run the download functionality in interactive mode."""
-    helper = GTLogsHelper()
+    helper = GTLogsHelper(debug=debug)
 
     print("\n" + "-"*50)
     print("Download Mode - Retrieve files from S3")
@@ -2026,11 +2180,12 @@ def interactive_download_mode():
         print("  - Full path: s3://gt-logs/zendesk-tickets/ZD-145980/file.tar.gz")
         print("  - Ticket ID: ZD-145980 (will list available files)")
         print("  - Ticket + Jira: ZD-145980-RED-172041")
+        print("  - Zendesk URL: https://redislabs.zendesk.com/agent/tickets/150002")
         print()
 
         while True:
             s3_history = helper.get_history('s3_path')
-            s3_input = input_with_esc_detection("Enter S3 path or ticket ID: ", s3_history).strip()
+            s3_input = input_with_esc_detection("Enter S3 path, ticket ID, or Zendesk URL: ", s3_history).strip()
             check_exit_input(s3_input)
 
             if not s3_input:
@@ -2040,11 +2195,20 @@ def interactive_download_mode():
             # Parse the S3 path
             bucket, key = helper.parse_s3_path(s3_input)
             if not bucket or not key:
-                print(f"❌ Invalid S3 path or ticket ID: {s3_input}\n")
+                if "zendesk.com" in s3_input.lower():
+                    print(f"❌ Invalid Zendesk URL: Could not extract ticket ID from {s3_input}\n")
+                else:
+                    print(f"❌ Invalid S3 path or ticket ID: {s3_input}\n")
                 continue
 
             helper.add_to_history('s3_path', s3_input)
-            print(f"\n✓ Parsed: s3://{bucket}/{key}")
+
+            # Show what was extracted if input was a Zendesk URL
+            if "zendesk.com" in s3_input.lower():
+                ticket_id = helper.extract_ticket_id_from_url(s3_input)
+                print(f"\n✓ Extracted ticket ID: ZD-{ticket_id}")
+
+            print(f"✓ Parsed: s3://{bucket}/{key}")
             break
 
         # Get AWS profile
@@ -2070,7 +2234,7 @@ def interactive_download_mode():
 
         # Check authentication
         print(f"\nChecking AWS authentication...")
-        is_authenticated = helper.check_aws_authentication(aws_profile)
+        is_authenticated = helper.check_aws_authentication(aws_profile, debug=helper.debug)
 
         if not is_authenticated:
             print(f"⚠️  AWS profile '{aws_profile}' is not authenticated")
@@ -2158,9 +2322,7 @@ def interactive_download_mode():
                 local_path = default_name
 
             # Download the file
-            if helper.download_from_s3(bucket, key, local_path, aws_profile):
-                print(f"✅ Successfully downloaded to: {local_path}")
-            else:
+            if not helper.download_from_s3(bucket, key, local_path, aws_profile):
                 print("❌ Download failed")
                 return 1
 
@@ -2274,10 +2436,12 @@ Examples:
                        help='Ignore any saved state and start fresh')
     parser.add_argument('--clean-state', action='store_true',
                        help='Clean up state file and exit')
+    parser.add_argument('--debug', action='store_true',
+                       help='Enable debug output (shows timing and authentication details)')
 
     args = parser.parse_args()
 
-    helper = GTLogsHelper()
+    helper = GTLogsHelper(debug=args.debug)
 
     # Handle clean-state command
     if args.clean_state:
@@ -2334,7 +2498,7 @@ Examples:
 
         # Check authentication
         print(f"Checking AWS authentication...")
-        if not helper.check_aws_authentication(aws_profile):
+        if not helper.check_aws_authentication(aws_profile, debug=helper.debug):
             print(f"⚠️  AWS profile '{aws_profile}' is not authenticated")
             if not helper.aws_sso_login(aws_profile):
                 print("❌ Cannot proceed without authentication")
@@ -2434,7 +2598,7 @@ Examples:
             pass
         # If check failed (offline), continue silently
 
-        return interactive_mode()
+        return interactive_mode(debug=args.debug)
 
     # Require at least Zendesk ID for upload mode (Jira is optional)
     if not args.zendesk_id:
