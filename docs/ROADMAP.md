@@ -3,9 +3,73 @@
 This document outlines the development roadmap and feature priorities for
 GT Logs Helper.
 
-## Current Version: v1.5.2
+## Current Version: v1.6.1
 
 ### Recently Completed
+
+#### v1.6.1 - Performance & UX Improvements
+
+- ✅ **Fast SSO Authentication** - Dramatically improved authentication speed
+  - Local SSO cache validation (<100ms) before network calls
+  - Reduced network timeout from 10s to 5s
+  - Smart fallback to AWS STS API when cache is inconclusive
+
+- ✅ **Debug Flag** - New `--debug` flag for troubleshooting
+  - Shows detailed timing for authentication checks
+  - Displays SSO cache validation steps
+  - Optional - only enabled when explicitly requested
+
+- ✅ **Zendesk URL Support** - Paste ticket URLs directly
+  - Automatically extracts ticket ID from URLs
+  - Supports `/agent/tickets/` and `/tickets/` paths
+  - Works with any Zendesk subdomain
+  - Clear error messages for invalid URLs
+
+- ✅ **Full Path Display** - Downloads show complete absolute paths
+- ✅ **Type Safety** - Fixed all Pylance warnings for better IDE support
+- ✅ **Datetime Compatibility** - Fixed deprecation for Python 3.11+
+
+#### v1.6.0 - Upload/Download Resume with Retry and Verification
+
+- ✅ **Resume Capability** - Automatically resume interrupted uploads/downloads
+  - JSON-based state management in `~/.gtlogs-state.json`
+  - Tracks upload/download progress per file
+  - Resume on next execution
+
+- ✅ **Automatic Retry** - Exponential backoff for failed transfers
+  - Configurable max retries (default: 3)
+  - Retry delays: 1s, 2s, 4s, 8s... (max 60s)
+  - New `--max-retries` CLI argument
+
+- ✅ **Upload Verification** - S3 file size validation after upload
+  - Verify file exists in S3
+  - Compare local vs S3 file sizes
+  - New `--verify` CLI flag
+
+- ✅ **State Management** - Persistent tracking across interruptions
+  - New `--no-resume` flag to skip saved state
+  - New `--clean-state` flag to clean up state file
+
+- ✅ **Critical Bug Fix** - Auto-update now uses proper semantic versioning
+
+#### v1.5.3 - Directory Upload with Pattern Filtering
+
+- ✅ **Directory Upload** - Upload entire directories recursively
+  - Preserve directory structure in S3
+  - Recursive file discovery
+  - New `-D/--dir` CLI argument
+
+- ✅ **Pattern Filtering** - Include/exclude files with wildcards
+  - `--include` flag for whitelist patterns (e.g., `*.tar.gz`)
+  - `--exclude` flag for blacklist patterns (e.g., `*.log`)
+  - Multiple patterns supported
+
+- ✅ **Dry-Run Mode** - Preview uploads before execution
+  - Shows files that would be uploaded
+  - Displays total file count and size
+  - New `--dry-run` flag
+
+- ✅ **Batch Progress** - Track upload progress for all files in directory
 
 #### v1.5.2 - Real-Time Progress Tracking
 
@@ -92,15 +156,9 @@ GT Logs Helper.
 
 **Feature Development:**
 
-- **[ ] Directory Upload** - Upload entire directories recursively
-  - Preserve directory structure in S3
-  - Pattern-based filtering (e.g., exclude *.log files)
-  - Dry-run mode to preview uploads
-
-- **[ ] Upload Resume/Retry** - Handle interrupted uploads
-  - Detect partially uploaded files
-  - Resume from last successful file in batch
-  - Automatic retry with exponential backoff
+_No high-priority features currently planned. Recent releases (v1.5.3 - v1.6.1)
+completed directory upload, resume/retry, verification, and performance
+improvements._
 
 ---
 
@@ -108,8 +166,14 @@ GT Logs Helper.
 
 Enhancements that improve usability and automation:
 
+- **[ ] Presigned URL Generation** - Shareable S3 download links
+  - Generate temporary download URLs that expire after X hours
+  - Share files with people who don't have AWS access (customers, external teams)
+  - New `--generate-url` flag after successful upload
+  - Note: Core verification (file size) completed in v1.6.0
+
 - **[ ] S3 File Management** - Basic file operations
-  - List all files in a ticket's directory
+  - List all files in a ticket's directory (partially done - works in download mode)
   - Delete files from S3
   - Copy/move between S3 paths
 
@@ -117,11 +181,6 @@ Enhancements that improve usability and automation:
   - Save ZD+Jira combinations
   - Quick recall of frequent paths
   - Export/import configurations
-
-- **[ ] Verification** - Post-upload validation
-  - Verify file exists in S3 after upload
-  - Compare file sizes/checksums
-  - Generate shareable S3 presigned URLs
 
 - **[ ] Shell Completion** - Tab completion support
   - Bash completion script
@@ -250,4 +309,4 @@ based on:
 
 ---
 
-**Last Updated:** 2025-11-14 (v1.5.2 release - Progress bars implemented)
+**Last Updated:** 2025-01-17 (v1.6.1 release - Performance & UX improvements)
