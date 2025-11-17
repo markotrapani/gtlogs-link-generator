@@ -1,8 +1,12 @@
 # GT Logs Helper
 
-A lightning-fast command-line tool for uploading and downloading Redis Support packages to/from AWS S3. Streamline your support workflow with automatic authentication, batch operations, and intelligent path generation.
+A lightning-fast command-line tool for uploading and downloading Redis Support
+packages to/from AWS S3. Streamline your workflow with automatic
+authentication, batch operations, and intelligent path generation.
 
-**Current Version:** v1.6.1 | **[View Wiki](https://github.com/markotrapani/gtlogs-helper/wiki)** | **[Changelog](#whats-new)**
+**Current Version:** v1.6.1 |
+**[View Wiki](https://github.com/markotrapani/gtlogs-helper/wiki)** |
+**[Changelog](#whats-new)**
 
 ---
 
@@ -16,13 +20,16 @@ A lightning-fast command-line tool for uploading and downloading Redis Support p
 ./gtlogs-helper.py 145980 RED-172041 -f /path/to/package.tar.gz --execute
 
 # Upload entire directory with pattern filtering
-./gtlogs-helper.py 145980 --dir /path/to/directory --include "*.tar.gz" --exclude "*.log" --execute
+./gtlogs-helper.py 145980 --dir /path/to/directory \
+  --include "*.tar.gz" --exclude "*.log" --execute
 
 # Download files from a ticket
 ./gtlogs-helper.py --download ZD-145980
 ```
 
-**[➜ See More Examples](https://github.com/markotrapani/gtlogs-helper/wiki/Usage-Examples)** | **[➜ Full Command Reference](https://github.com/markotrapani/gtlogs-helper/wiki/Command-Reference)**
+**[➜ See More Examples](https://github.com/markotrapani/gtlogs-helper/wiki/Usage-Examples)**
+|
+**[➜ Full Command Reference](https://github.com/markotrapani/gtlogs-helper/wiki/Command-Reference)**
 
 ---
 
@@ -31,12 +38,15 @@ A lightning-fast command-line tool for uploading and downloading Redis Support p
 - ⚡ **Lightning-fast UX** - Auto-submit prompts, smart defaults, instant feedback
 - 📤 **Upload Mode** - Generate S3 paths for ZD-only or ZD+Jira scenarios
 - 📥 **Download Mode** - List, select, and download files from S3
-- 📁 **Directory Upload** - Upload entire directories with pattern filtering and dry-run mode
+- 📁 **Directory Upload** - Upload entire directories with pattern filtering
+  and dry-run mode
 - 🔄 **Batch Operations** - Upload/download multiple files simultaneously
 - 🔐 **Auto-Authentication** - Automatic AWS SSO login handling
 - 📝 **Input History** - Arrow key navigation through previous inputs
-- ⌨️ **Keyboard Controls** - ESC to exit, Ctrl+U to update, UP/DOWN for history
-- ✅ **Input Validation** - Strict validation for Zendesk IDs, Jira IDs, and file paths
+- ⌨️ **Keyboard Controls** - ESC to exit, Ctrl+U to update, UP/DOWN for
+  history
+- ✅ **Input Validation** - Strict validation for Zendesk IDs, Jira IDs, and
+  file paths
 
 **[➜ Full Feature List](https://github.com/markotrapani/gtlogs-helper/wiki#key-features)**
 
@@ -74,6 +84,7 @@ Run without arguments for guided prompts:
 ```
 
 **Keyboard controls:**
+
 - **ESC** - Exit immediately
 - **Ctrl+C** - Exit gracefully
 - **Ctrl+U** - Check for updates
@@ -94,22 +105,23 @@ Run without arguments for guided prompts:
   -f file1.tar.gz -f file2.tar.gz -f file3.tar.gz --execute
 ```
 
-<details>
-<summary><b>S3 Path Structure</b></summary>
+### S3 Path Structure
 
 **Without Jira (ZD-only):**
-```
+
+```text
 s3://gt-logs/zendesk-tickets/ZD-145980/package.tar.gz
 ```
+
 Use for Redis Cloud environments without Engineering involvement.
 
 **With Jira (ZD + Jira):**
-```
+
+```text
 s3://gt-logs/exa-to-gt/ZD-145980-RED-172041/package.tar.gz
 ```
-Use for Engineering escalation via Jira tickets (RED-# or MOD-#).
 
-</details>
+Use for Engineering escalation via Jira tickets (RED-# or MOD-#).
 
 ### Download Examples
 
@@ -144,19 +156,18 @@ Profile is saved to `~/.gtlogs-config.ini` and used for all operations.
 ./gtlogs-helper.py --show-config
 ```
 
-<details>
-<summary><b>Configuration Files</b></summary>
+### Configuration Files
 
 **Config file:** `~/.gtlogs-config.ini`
+
 - Stores default AWS profile
 - Commands: `--set-profile`, `--show-config`
 
 **History file:** `~/.gtlogs-history.json`
+
 - Stores last 20 inputs per field
 - Navigate with UP/DOWN arrows in interactive mode
 - Preserved on ESC/Ctrl+C exit
-
-</details>
 
 ---
 
@@ -164,7 +175,7 @@ Profile is saved to `~/.gtlogs-config.ini` and used for all operations.
 
 All inputs are strictly validated:
 
-- **Zendesk IDs:** Must be numerical only
+- **Zendesk IDs:** Numerical ticket ID with optional 'ZD-' prefix
   - ✅ Valid: `145980`, `ZD-145980`, `zd-145980`
   - ❌ Invalid: `145980abc`, `ZD-abc`
 
@@ -183,14 +194,22 @@ All inputs are strictly validated:
 ## Documentation
 
 ### User Documentation
-- **[Getting Started](https://github.com/markotrapani/gtlogs-helper/wiki/Getting-Started)** - Installation and first-run guide
-- **[Usage Examples](https://github.com/markotrapani/gtlogs-helper/wiki/Usage-Examples)** - Detailed scenarios and workflows
-- **[Command Reference](https://github.com/markotrapani/gtlogs-helper/wiki/Command-Reference)** - Complete CLI options
+
+- **[Getting Started](https://github.com/markotrapani/gtlogs-helper/wiki/Getting-Started)**
+  \- Installation and first-run guide
+- **[Usage Examples](https://github.com/markotrapani/gtlogs-helper/wiki/Usage-Examples)**
+  \- Detailed scenarios and workflows
+- **[Command Reference](https://github.com/markotrapani/gtlogs-helper/wiki/Command-Reference)**
+  \- Complete CLI options
 
 ### Developer Documentation
-- **[Development Guide](https://github.com/markotrapani/gtlogs-helper/wiki/Development-Guide)** - Contributing guidelines
-- **[Testing](https://github.com/markotrapani/gtlogs-helper/wiki/Testing)** - Testing documentation
-- **[Roadmap](https://github.com/markotrapani/gtlogs-helper/wiki/Roadmap)** - Future plans and priorities
+
+- **[Development Guide](https://github.com/markotrapani/gtlogs-helper/wiki/Development-Guide)**
+  \- Contributing guidelines
+- **[Testing](https://github.com/markotrapani/gtlogs-helper/wiki/Testing)**
+  \- Testing documentation
+- **[Roadmap](https://github.com/markotrapani/gtlogs-helper/wiki/Roadmap)**
+  \- Future plans and priorities
 - **[CLAUDE.md](CLAUDE.md)** - AI development instructions
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contribution guidelines
 
@@ -210,12 +229,13 @@ Authenticate before first use:
 aws sso login --profile gt-logs
 ```
 
-Or use `--execute` mode - the tool will automatically run `aws sso login` if needed!
+Or use `--execute` mode - the tool will automatically run `aws sso login` if
+needed!
 
-<details>
-<summary><b>Troubleshooting Authentication</b></summary>
+### Troubleshooting Authentication
 
 **Session Expired:**
+
 ```bash
 # Error: The SSO session associated with this profile has expired
 # Solution: Re-authenticate
@@ -223,6 +243,7 @@ aws sso login --profile gt-logs
 ```
 
 **Permission Errors:**
+
 ```bash
 # Error: Access Denied or 403 Forbidden
 # Solutions:
@@ -232,8 +253,6 @@ aws sso login --profile gt-logs
 aws sso login --profile gt-logs
 aws sts get-caller-identity --profile gt-logs  # Verify identity
 ```
-
-</details>
 
 ---
 
@@ -248,12 +267,13 @@ The tool automatically checks for updates on startup. You can also:
 # Or press Ctrl+U during interactive mode
 ```
 
-Updates are installed with your permission. Your previous version is automatically backed up.
+Updates are installed with your permission. Your previous version is
+automatically backed up.
 
-<details>
-<summary><b>Update Process Details</b></summary>
+### Update Process Details
 
 **What happens:**
+
 1. Downloads latest release from GitHub
 2. Creates backup: `gtlogs-helper.py.backup`
 3. Replaces current script with new version
@@ -261,12 +281,11 @@ Updates are installed with your permission. Your previous version is automatical
 5. On failure: automatically restores from backup
 
 **Manual rollback:**
+
 ```bash
 mv gtlogs-helper.py.backup gtlogs-helper.py
 chmod +x gtlogs-helper.py
 ```
-
-</details>
 
 ---
 
@@ -323,6 +342,7 @@ python3 tests/test_suite.py
 ```
 
 **Test coverage:**
+
 - Input validation (Zendesk IDs, Jira IDs, file paths)
 - S3 path generation (ZD-only, ZD+Jira)
 - AWS authentication handling
@@ -337,21 +357,30 @@ python3 tests/test_suite.py
 
 ### v1.6.1 - Performance & UX Improvements
 
-- ⚡ **Fast SSO auth check** - Local cache check (<100ms) before network call, dramatically faster authentication
-- 🐛 **Debug flag** - New `--debug` flag shows timing and authentication details when troubleshooting
-- 🔗 **Zendesk URL support** - Paste ticket URLs directly: `https://redislabs.zendesk.com/agent/tickets/150002`
-- 📍 **Full path display** - Downloads now show complete absolute path to saved files
+- ⚡ **Fast SSO auth check** - Local cache check (<100ms) before network call,
+  dramatically faster authentication
+- 🐛 **Debug flag** - New `--debug` flag shows timing and authentication
+  details when troubleshooting
+- 🔗 **Zendesk URL support** - Paste ticket URLs directly:
+  `https://redislabs.zendesk.com/agent/tickets/150002`
+- 📍 **Full path display** - Downloads now show complete absolute path to
+  saved files
 - 🔧 **Type safety** - Fixed all Pylance warnings for better IDE support
-- 📅 **Datetime fix** - Resolved deprecation warning for Python 3.11+ compatibility
+- 📅 **Datetime fix** - Resolved deprecation warning for Python 3.11+
+  compatibility
 
 ### v1.6.0 - Upload/Download Resume with Retry and Verification
 
-- 🔄 **Resume capability** - Automatically resume interrupted uploads/downloads
-- 🔁 **Automatic retry** - Exponential backoff retry for failed transfers (configurable attempts)
+- 🔄 **Resume capability** - Automatically resume interrupted
+  uploads/downloads
+- 🔁 **Automatic retry** - Exponential backoff retry for failed transfers
+  (configurable attempts)
 - ✅ **Upload verification** - S3 file size validation after upload
 - 💾 **State management** - Persistent state tracking across interruptions
-- 🎛️ **New CLI arguments** - `--max-retries`, `--verify`, `--no-resume`, `--clean-state`
-- 🐛 **Critical bug fix** - Auto-update now uses proper semantic versioning (prevents downgrades)
+- 🎛️ **New CLI arguments** - `--max-retries`, `--verify`, `--no-resume`,
+  `--clean-state`
+- 🐛 **Critical bug fix** - Auto-update now uses proper semantic versioning
+  (prevents downgrades)
 
 ### v1.5.3 - Directory Upload with Pattern Filtering
 
@@ -360,55 +389,61 @@ python3 tests/test_suite.py
 - 👀 **Dry-run mode** - Preview uploads before execution
 - 📊 **Batch progress** - Track upload progress for all files in directory
 
-<details>
-<summary><b>Previous Releases</b></summary>
+### Previous Releases
 
-### v1.5.2 - Real-Time Progress Tracking
+#### v1.5.2 - Real-Time Progress Tracking
 
-- 📊 **Progress bars** - Visual progress for uploads and downloads with speed and ETA
+- 📊 **Progress bars** - Visual progress for uploads and downloads with speed
+  and ETA
 - 📈 **File size tracking** - See completed/total bytes in real-time
 - ⚡ **Transfer speed** - Live speed indicators (MB/s)
 - ⏱️  **ETA calculation** - Estimated time remaining for transfers
 
-### v1.5.1 - Lightning-Fast Interactive Experience
+#### v1.5.1 - Lightning-Fast Interactive Experience
 
-- ⚡ **Auto-submit inputs** - Type 'y', 'n', '1', 'u', '2', or 'd' without pressing Enter
-- 🎯 **Smart defaults** - Enter key defaults to "Yes" for updates, "Upload" for mode selection
-- ✨ **Enhanced UI** - Cloud emoji icons (☁️ ⬆️  / ☁️ ⬇️ ) and cleaner displays
+- ⚡ **Auto-submit inputs** - Type 'y', 'n', '1', 'u', '2', or 'd' without
+  pressing Enter
+- 🎯 **Smart defaults** - Enter key defaults to "Yes" for updates, "Upload"
+  for mode selection
+- ✨ **Enhanced UI** - Cloud emoji icons (☁️ ⬆️  / ☁️ ⬇️ ) and cleaner
+  displays
 - 👋 **Graceful exits** - Consistent ESC/Ctrl+C handling across all prompts
 
-### v1.4.x - UX Polish
+#### v1.4.x - UX Polish
+
 - Fixed terminal cursor positioning in raw mode
 - Improved error message clarity with grouped equivalent choices
 - Enhanced mode selection with U/D keyboard shortcuts
 
-### v1.3.0 - Testing Infrastructure
+#### v1.3.0 - Testing Infrastructure
+
 - Comprehensive test suite with 16 automated tests (100% pass rate)
 - End-to-end testing with real S3 bucket access
 - Automatic AWS SSO authentication in tests
 - MIT License and CONTRIBUTING.md for open collaboration
 
-### v1.2.0 - Batch Operations
+#### v1.2.0 - Batch Operations
+
 - Batch upload multiple files to same S3 destination
 - Interactive mode: Comma-separated paths or iterative addition
 - CLI mode: Multiple `-f` flags
 - Download UX: Press `a` to download all files
 
-### v1.1.0 - Download Support
+#### v1.1.0 - Download Support
+
 - Complete S3 download functionality
 - Mode selection (Upload/Download)
 - Batch download support
 - Self-update capability with version checking
 - Input history with arrow key navigation
 
-### v1.0.0 - Initial Release
+#### v1.0.0 - Initial Release
+
 - Upload mode with ZD-only and ZD+Jira paths
 - Input validation (Zendesk IDs, Jira IDs, file paths)
 - Interactive and CLI modes
 - AWS SSO authentication handling
 - Configuration persistence
-
-</details>
 
 **[➜ Full Roadmap](https://github.com/markotrapani/gtlogs-helper/wiki/Roadmap)**
 
@@ -419,8 +454,10 @@ python3 tests/test_suite.py
 Contributions are welcome! Please see:
 
 - **[Contributing Guide](CONTRIBUTING.md)** - Guidelines and workflow
-- **[Development Guide](https://github.com/markotrapani/gtlogs-helper/wiki/Development-Guide)** - Architecture and coding standards
-- **[Roadmap](https://github.com/markotrapani/gtlogs-helper/wiki/Roadmap)** - Planned features
+- **[Development Guide](https://github.com/markotrapani/gtlogs-helper/wiki/Development-Guide)**
+  \- Architecture and coding standards
+- **[Roadmap](https://github.com/markotrapani/gtlogs-helper/wiki/Roadmap)**
+  \- Planned features
 
 ### Quick Contribution Workflow
 
@@ -443,7 +480,8 @@ MIT License - See [LICENSE](LICENSE) file for details.
 ## Support
 
 **Questions or Issues?**
-- **Contact:** marko.trapani@redis.com
+
+- **Contact:** <marko.trapani@redis.com>
 - **GitHub Issues:** [github.com/markotrapani/gtlogs-helper/issues](https://github.com/markotrapani/gtlogs-helper/issues)
 - **Wiki:** [github.com/markotrapani/gtlogs-helper/wiki](https://github.com/markotrapani/gtlogs-helper/wiki)
 
