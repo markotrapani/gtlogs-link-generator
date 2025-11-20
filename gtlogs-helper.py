@@ -639,11 +639,19 @@ class GTLogsHelper:
 
         # Check if file exists
         if not os.path.exists(expanded_path):
-            raise ValueError(f"File does not exist: {file_path}")
+            # Show both original and expanded paths if they differ
+            if expanded_path != file_path:
+                raise ValueError(f"File does not exist: {file_path} (expanded to: {expanded_path})")
+            else:
+                raise ValueError(f"File does not exist: {file_path}")
 
         # Check if it's actually a file (not a directory)
         if not os.path.isfile(expanded_path):
-            raise ValueError(f"Path is not a file: {file_path}")
+            # Show both original and expanded paths if they differ
+            if expanded_path != file_path:
+                raise ValueError(f"Path is not a file: {file_path} (expanded to: {expanded_path})")
+            else:
+                raise ValueError(f"Path is not a file: {file_path}")
 
         return expanded_path
 
@@ -670,11 +678,19 @@ class GTLogsHelper:
 
         # Check if directory exists
         if not os.path.exists(expanded_path):
-            raise ValueError(f"Directory does not exist: {dir_path}")
+            # Show both original and expanded paths if they differ
+            if expanded_path != dir_path:
+                raise ValueError(f"Directory does not exist: {dir_path} (expanded to: {expanded_path})")
+            else:
+                raise ValueError(f"Directory does not exist: {dir_path}")
 
         # Check if it's actually a directory (not a file)
         if not os.path.isdir(expanded_path):
-            raise ValueError(f"Path is not a directory: {dir_path}")
+            # Show both original and expanded paths if they differ
+            if expanded_path != dir_path:
+                raise ValueError(f"Path is not a directory: {dir_path} (expanded to: {expanded_path})")
+            else:
+                raise ValueError(f"Path is not a directory: {dir_path}")
 
         return expanded_path
 
@@ -2293,6 +2309,9 @@ def interactive_download_mode(debug=False):
 
             if not local_dir:
                 local_dir = "."
+            else:
+                # Expand ~ if present
+                local_dir = os.path.expanduser(local_dir)
 
             # Create directory if it doesn't exist
             if local_dir != "." and not os.path.exists(local_dir):
@@ -2320,6 +2339,9 @@ def interactive_download_mode(debug=False):
 
             if not local_path:
                 local_path = default_name
+            else:
+                # Expand ~ if present
+                local_path = os.path.expanduser(local_path)
 
             # Download the file
             if not helper.download_from_s3(bucket, key, local_path, aws_profile):
@@ -2504,8 +2526,8 @@ Examples:
                 print("❌ Cannot proceed without authentication")
                 return 1
 
-        # Determine output path
-        output_path = args.output_path or "."
+        # Determine output path (expand ~ if present)
+        output_path = os.path.expanduser(args.output_path) if args.output_path else "."
 
         # If downloading a directory, list and prompt
         if key.endswith("/"):
