@@ -1400,6 +1400,29 @@ class GTLogsHelper:
         return None
 
     @staticmethod
+    def extract_jira_id_from_url(url: str) -> Optional[str]:
+        """Extract Jira ticket ID from a Jira URL.
+
+        Args:
+            url: Jira ticket URL (e.g., https://jira.redis.com/browse/RED-172041)
+
+        Returns:
+            Jira ID string (e.g., "RED-172041") or None if not a valid Jira URL
+        """
+        # Match Jira URL patterns
+        # Examples:
+        #   https://jira.redis.com/browse/RED-172041
+        #   https://jira.company.com/browse/MOD-12345
+        #   https://company.atlassian.net/browse/RED-99999
+        jira_pattern = r'/browse/(RED|MOD)-(\d+)'
+        match = re.search(jira_pattern, url, re.IGNORECASE)
+        if match:
+            prefix = match.group(1).upper()
+            number = match.group(2)
+            return f"{prefix}-{number}"
+        return None
+
+    @staticmethod
     def parse_s3_path(s3_path: str):
         """Parse an S3 path or partial path to extract bucket and key.
 
@@ -1945,11 +1968,22 @@ def interactive_upload_mode(debug=False):
         jira_formatted = None
         while True:
             jira_history = generator.get_history('jira_id')
-            jira_input = input_with_esc_detection("Enter Jira ID (e.g., RED-172041 or MOD-12345, press Enter to skip): ", jira_history).strip()
+            jira_input = input_with_esc_detection("Enter Jira ID or URL (e.g., RED-172041, MOD-12345, or https://jira.../browse/RED-172041, press Enter to skip): ", jira_history).strip()
             check_exit_input(jira_input)
             if not jira_input:
                 print("\n✓ No Jira ID - will use zendesk-tickets path\n")
                 break
+
+            # Check if input is a Jira URL
+            if "/browse/" in jira_input.lower():
+                jira_from_url = generator.extract_jira_id_from_url(jira_input)
+                if jira_from_url:
+                    print(f"\n✓ Extracted from URL: {jira_from_url}")
+                    jira_input = jira_from_url
+                else:
+                    print(f"❌ Could not extract Jira ID from URL: {jira_input}\n")
+                    continue
+
             try:
                 jira_formatted = generator.validate_jira_id(jira_input)
                 print(f"\n✓ Using: {jira_formatted}\n")
@@ -2638,6 +2672,14 @@ Examples:
         # Validate Jira ID if provided
         jira_formatted = None
         if args.jira_id:
+            # Check if it's a Jira URL
+            if "/browse/" in args.jira_id.lower():
+                jira_from_url = helper.extract_jira_id_from_url(args.jira_id)
+                if jira_from_url:
+                    args.jira_id = jira_from_url
+                else:
+                    print(f"❌ Could not extract Jira ID from URL: {args.jira_id}")
+                    return 1
             jira_formatted = helper.validate_jira_id(args.jira_id)
 
         # Validate and collect file paths
