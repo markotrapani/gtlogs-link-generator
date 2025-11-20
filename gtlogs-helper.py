@@ -1451,21 +1451,34 @@ class GTLogsHelper:
                 return bucket, key
 
         # Handle partial paths (ZD-only or ZD+Jira)
-        # Try to validate as Zendesk ID
-        try:
-            zd_id = GTLogsHelper.validate_zendesk_id(s3_path)
-            # Check if it contains Jira ID too
-            if "-RED-" in s3_path.upper() or "-MOD-" in s3_path.upper():
+        # Check if it contains combined ZD+Jira format first
+        if "-RED-" in s3_path.upper() or "-MOD-" in s3_path.upper():
+            try:
                 # Extract Jira part
                 jira_match = re.search(r'(RED|MOD)-\d+', s3_path.upper())
                 if jira_match:
                     jira_id = jira_match.group()
+                    # Extract ZD part (everything before the Jira ID)
+                    zd_part = s3_path[:jira_match.start()].rstrip('-')
+                    zd_id = GTLogsHelper.validate_zendesk_id(zd_part)
                     # ZD+Jira path
                     return "gt-logs", f"exa-to-gt/{zd_id}-{jira_id}/"
+            except:
+                pass
+
+        # Try to validate as ZD-only path
+        try:
+            zd_id = GTLogsHelper.validate_zendesk_id(s3_path)
             # ZD-only path
             return "gt-logs", f"zendesk-tickets/{zd_id}/"
         except:
             pass
+
+        # Check for known path prefixes (key-only format)
+        # Examples: zendesk-tickets/ZD-145980/file.tar.gz
+        #           exa-to-gt/ZD-145980-RED-172041/debuginfo.tar.gz
+        if s3_path.startswith("zendesk-tickets/") or s3_path.startswith("exa-to-gt/"):
+            return "gt-logs", s3_path
 
         # Try to parse as direct bucket/key format
         # IMPORTANT: Only do this if it doesn't look like a URL

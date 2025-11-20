@@ -10,24 +10,35 @@ Comprehensive analysis of all possible input formats for S3 upload/download oper
 
 | Format | Example | Status | Notes |
 |--------|---------|--------|-------|
-| **Full S3 URI** | `s3://gt-logs/zendesk-tickets/ZD-145980/file.tar.gz` | ✅ | Standard AWS format |
-| **Numeric Ticket ID** | `145980` | ✅ | Auto-formats to ZD-145980 |
-| **Formatted Ticket ID** | `ZD-145980` | ✅ | Direct match |
+| **Full S3 URI** | `s3://gt-logs/zendesk-tickets/ZD-145980/file` | ✅ | AWS |
+| **Numeric Ticket ID** | `145980` | ✅ | Auto-formats |
+| **Formatted Ticket ID** | `ZD-145980` | ✅ | Direct |
 | **Lowercase Ticket ID** | `zd-145980` | ✅ | Case-insensitive |
-| **Combined ZD+Jira** | `ZD-145980-RED-172041` | ✅ | Hyphen-separated |
-| **Numeric + Jira** | `145980-RED-172041` | ✅ | ZD prefix added |
-| **Zendesk Agent URL** | `https://redislabs.zendesk.com/agent/tickets/150002` | ✅ | v1.6.1+ |
-| **Zendesk Public URL** | `https://redislabs.zendesk.com/tickets/150002` | ✅ | v1.6.1+ |
-| **Partial bucket/key** | `bucket-name/path/to/file` | ✅ | Direct bucket/key split |
+| **Combined ZD+Jira** | `ZD-145980-RED-172041` | ✅ | Hyphen-sep |
+| **Numeric + Jira** | `145980-RED-172041` | ✅ | ZD added |
+| **Zendesk Agent URL** ¹ | `https://co.zendesk.com/agent/tickets/123` | ✅ |  |
+| **Zendesk Public URL** ¹ | `https://co.zendesk.com/tickets/123456` | ✅ |  |
+| **Jira URL** ² | `https://jira.co.com/browse/RED-172041` | ✅ |  |
+| **Partial S3 path (ZD)** ² | `zendesk-tickets/ZD-145980/f` | ✅ | Auto-bucket |
+| **Partial S3 path (ZD+Jira)** ² | `exa-to-gt/ZD-1-RED-2/f` | ✅ | Auto-bucket |
+| **Partial bucket/key** | `bucket-name/path/to/file` | ✅ | Direct split |
+
+¹ Added in v1.6.1
+² Added in v1.6.2
 
 #### Upload Mode (Separate Arguments)
 
 | Format | Example | Status | Notes |
 |--------|---------|--------|-------|
-| **ZD ID (numeric)** | `145980` | ✅ | First positional arg |
-| **ZD ID (formatted)** | `ZD-145980` | ✅ | First positional arg |
-| **Jira ID (formatted)** | `RED-172041` | ✅ | Second positional arg |
-| **Jira ID (no hyphen)** | `RED172041` | ✅ | Auto-adds hyphen |
+| **ZD ID (numeric)** | `145980` | ✅ | First arg |
+| **ZD ID (formatted)** | `ZD-145980` | ✅ | First arg |
+| **Zendesk URL** ¹ | `https://c.zendesk.com/agent/tickets/123` | ✅ | First arg |
+| **Jira ID (formatted)** | `RED-172041` | ✅ | Second arg |
+| **Jira ID (no hyphen)** | `RED172041` | ✅ | Auto-hyphen |
+| **Jira URL** ² | `https://jira.co.com/browse/RED-172041` | ✅ | Second arg |
+
+¹ Added in v1.6.1
+² Added in v1.6.2
 
 ---
 
@@ -40,6 +51,7 @@ Comprehensive analysis of all possible input formats for S3 upload/download oper
 **Use Case**: Users copy Jira ticket URLs from browser
 
 **Examples**:
+
 ```text
 https://jira.redis.com/browse/RED-172041
 https://jira.company.com/browse/MOD-12345
@@ -47,6 +59,7 @@ https://jira.atlassian.net/browse/RED-172041
 ```
 
 **Implementation**:
+
 ```python
 def extract_jira_id_from_url(url: str) -> Optional[str]:
     """Extract Jira ID from Jira URL."""
@@ -60,6 +73,7 @@ def extract_jira_id_from_url(url: str) -> Optional[str]:
 ```
 
 **Benefits**:
+
 - Consistent with Zendesk URL support
 - Natural workflow (copy from Jira, paste into tool)
 - Zero learning curve
@@ -73,6 +87,7 @@ def extract_jira_id_from_url(url: str) -> Optional[str]:
 **Use Case**: Users viewing files in AWS Console copy URL from address bar
 
 **Examples**:
+
 ```text
 # Bucket browser URL
 https://s3.console.aws.amazon.com/s3/buckets/gt-logs?prefix=zendesk-tickets/ZD-145980/
@@ -86,6 +101,7 @@ https://s3.console.aws.amazon.com/s3/object/gt-logs/zendesk-tickets/ZD-145980/fi
 ```
 
 **Implementation**:
+
 ```python
 def parse_aws_console_url(url: str) -> Optional[tuple[str, str]]:
     """Extract bucket and key from AWS S3 Console URL."""
@@ -107,6 +123,7 @@ def parse_aws_console_url(url: str) -> Optional[tuple[str, str]]:
 ```
 
 **Benefits**:
+
 - Natural when users are browsing S3 in console
 - Eliminates manual path construction
 - Reduces copy/paste errors
@@ -120,19 +137,23 @@ def parse_aws_console_url(url: str) -> Optional[tuple[str, str]]:
 **Use Case**: Users copy just the key from S3 console or logs
 
 **Examples**:
+
 ```text
 zendesk-tickets/ZD-145980/file.tar.gz
 exa-to-gt/ZD-145980-RED-172041/debuginfo.tar.gz
 ```
 
 **Current Behavior**:
+
 - Would be interpreted as `bucket=zendesk-tickets`, `key=ZD-145980/file.tar.gz` ❌
 
 **Desired Behavior**:
+
 - Recognize known path prefixes
 - Auto-prepend `gt-logs` bucket
 
 **Implementation**:
+
 ```python
 def parse_s3_path(s3_path: str):
     # ... existing code ...
@@ -145,6 +166,7 @@ def parse_s3_path(s3_path: str):
 ```
 
 **Benefits**:
+
 - Handles partial copies from logs/console
 - Works with both upload paths
 
@@ -159,6 +181,7 @@ def parse_s3_path(s3_path: str):
 **Use Case**: More natural input for some users
 
 **Examples**:
+
 ```text
 145980 RED-172041
 ZD-145980 RED-172041
@@ -167,6 +190,7 @@ ZD-145980 RED-172041
 **Current Behavior**: Treated as single string, fails Jira extraction ❌
 
 **Implementation**:
+
 ```python
 def parse_s3_path(s3_path: str):
     # Normalize spaces to hyphens if it looks like "ZD JIRA"
@@ -181,10 +205,12 @@ def parse_s3_path(s3_path: str):
 ```
 
 **Benefits**:
+
 - More forgiving input parsing
 - Handles accidental spaces
 
 **Drawbacks**:
+
 - Could introduce ambiguity
 - May confuse users about correct format
 
@@ -197,6 +223,7 @@ def parse_s3_path(s3_path: str):
 **Use Case**: Users using different separator conventions
 
 **Examples**:
+
 ```text
 145980/RED-172041  (slash separator)
 145980_RED-172041  (underscore)
@@ -205,6 +232,7 @@ def parse_s3_path(s3_path: str):
 **Recommendation**: **DON'T IMPLEMENT**
 
 **Reasoning**:
+
 - Slashes conflict with S3 paths
 - Creates ambiguity in parsing
 - No clear user benefit
@@ -221,11 +249,13 @@ def parse_s3_path(s3_path: str):
 **Use Case**: Paths copied from URLs with special characters
 
 **Examples**:
+
 ```text
 s3://gt-logs/zendesk-tickets/ZD-145980/file%20with%20spaces.tar.gz
 ```
 
 **Implementation**:
+
 ```python
 import urllib.parse
 
@@ -237,6 +267,7 @@ def parse_s3_path(s3_path: str):
 ```
 
 **Benefits**:
+
 - Handles URL-encoded special characters
 - Works with browser copy/paste
 
@@ -249,13 +280,14 @@ def parse_s3_path(s3_path: str):
 **Use Case**: Users typing quickly or from mobile
 
 **Examples**:
+
 ```text
 zd-145980-red-172041
 ZD-145980-RED-172041
 Zd-145980-Red-172041
 ```
 
-**Current Support**: Mostly works (validate_zendesk_id and validate_jira_id uppercase internally)
+**Current Support**: Works (validation functions uppercase internally)
 
 **Recommendation**: Already handled ✅
 
@@ -263,29 +295,28 @@ Zd-145980-Red-172041
 
 ## 📊 Recommended Implementation Priority
 
-### Phase 1: High-Value, Low-Risk (Recommended for v1.6.2)
+### ✅ Completed
 
-1. **Jira URL Support** ⭐⭐⭐
+1. **Jira URL Support** ⭐⭐⭐ - **IMPLEMENTED in v1.6.2**
    - Mirrors existing Zendesk URL feature
    - Clear user benefit
    - Low implementation complexity
    - No breaking changes
 
-### Phase 2: Useful Additions (v1.7.0)
-
-2. **AWS S3 Console URL Support** ⭐⭐
-   - Useful for power users
-   - Medium complexity (multiple URL formats)
-   - No breaking changes
-
-3. **Partial S3 Paths (Key-Only)** ⭐⭐
+2. **Partial S3 Paths (Key-Only)** ⭐⭐ - **IMPLEMENTED in v1.6.2**
    - Helpful for log parsing scenarios
    - Low complexity
-   - Requires careful validation (avoid false positives)
+   - Careful validation implemented (avoids false positives)
+
+### Phase 2: Useful Additions (v1.7.0)
+
+1. **AWS S3 Console URL Support** ⭐ - **SKIPPED**
+   - User feedback: "people using this script will never be getting those URLs"
+   - Not implementing
 
 ### Phase 3: Optional Enhancements (Future)
 
-4. **URL Decoding** ⭐
+1. **URL Decoding** ⭐
    - Edge case handling
    - Trivial implementation
    - Almost never needed in practice
@@ -346,16 +377,24 @@ Examples:
 
 ## 🎯 Summary Recommendation
 
-**Implement in v1.6.2**:
-- ✅ Jira URL support (high value, low risk)
+**✅ Implemented in v1.6.2**:
 
-**Consider for v1.7.0**:
-- AWS S3 Console URL support
-- Partial S3 paths (key-only)
-- URL decoding
+- ✅ Jira URL support (high value, low risk) - COMPLETE
+- ✅ Partial S3 paths (key-only) - COMPLETE
+
+**Skipped based on user feedback**:
+
+- ❌ AWS S3 Console URL support (users don't encounter these URLs)
+
+**Consider for future versions**:
+
+- Smart clipboard detection (user requested: "would be great!")
+- URL decoding (low priority edge case)
 
 **Do NOT implement**:
-- Space-separated input
-- Alternative separators (slash, underscore)
 
-This approach maximizes user convenience while maintaining code clarity and avoiding ambiguous parsing.
+- Space-separated input (too ambiguous)
+- Alternative separators (conflicts with S3 paths)
+
+This approach maximizes user convenience while maintaining code clarity
+and avoiding ambiguous parsing.
