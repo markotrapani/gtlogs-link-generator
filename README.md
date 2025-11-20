@@ -355,6 +355,16 @@ python3 tests/test_suite.py
 
 ## What's New
 
+### v1.6.2 - Enhanced Input Format Support
+
+- 🔗 **Jira URL support** - Paste Jira ticket URLs directly:
+  `https://jira.company.com/browse/RED-172041`
+- 📂 **Partial S3 path support** - Paste S3 keys without full URIs:
+  `zendesk-tickets/ZD-145980/file.tar.gz` → auto-prepends `gt-logs` bucket
+- 🐛 **Tilde expansion fix** - `~` character now correctly expands to home
+  directory in download paths
+- 🔧 **Improved parsing** - Better handling of combined ZD+Jira ID formats
+
 ### v1.6.1 - Performance & UX Improvements
 
 - ⚡ **Fast SSO auth check** - Local cache check (<100ms) before network call,

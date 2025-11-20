@@ -487,7 +487,56 @@ test: Add validation tests for Jira IDs
 
 ## Version History
 
-**Current Version:** v1.3.0 - Stable production tool with automated testing
+**Current Version:** v1.6.2 - Enhanced input format support
+
+**v1.6.2 (2025-01-20):**
+
+- Jira URL support - paste Jira ticket URLs directly
+- Partial S3 path support - paste S3 keys without full URIs
+- Tilde expansion fix - `~` now correctly expands in download paths
+- Improved input parsing for combined ZD+Jira ID formats
+
+**v1.6.1 (2025-01-17):**
+
+- Fast SSO authentication with local cache validation (<100ms)
+- Debug flag (`--debug`) for troubleshooting
+- Zendesk URL support - paste ticket URLs directly
+- Full path display for downloads
+- Type safety improvements (fixed all Pylance warnings)
+- Python 3.11+ datetime compatibility
+
+**v1.6.0 (2025-01-16):**
+
+- Resume capability for interrupted uploads/downloads
+- Automatic retry with exponential backoff
+- Upload verification with S3 file size validation
+- State management with new CLI arguments
+- Critical bug fix for auto-update semantic versioning
+
+**v1.5.3 (2025-01-15):**
+
+- Directory upload with preserved structure
+- Pattern filtering (include/exclude wildcards)
+- Dry-run mode for previewing uploads
+- Batch progress tracking
+
+**v1.5.2 (2025-01-15):**
+
+- Real-time progress bars with speed and ETA
+- File size tracking
+- Transfer speed indicators
+
+**v1.5.x (2025-01-14):**
+
+- Auto-submit prompts (type without Enter)
+- Enhanced visual design with cloud emojis
+- Improved terminal experience
+
+**v1.4.x (2025-01-14):**
+
+- Terminal experience improvements
+- Input validation enhancements
+- Consistent exit behavior
 
 **v1.3.0 (2025-01-15):**
 

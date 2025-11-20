@@ -3,9 +3,33 @@
 This document outlines the development roadmap and feature priorities for
 GT Logs Helper.
 
-## Current Version: v1.6.1
+## Current Version: v1.6.2
 
 ### Recently Completed
+
+#### v1.6.2 - Enhanced Input Format Support
+
+- ✅ **Jira URL Support** - Paste Jira ticket URLs directly
+  - Automatically extracts Jira ID from URLs
+  - Supports `https://jira.company.com/browse/RED-172041` format
+  - Works in both interactive and CLI modes
+  - Case-insensitive matching
+
+- ✅ **Partial S3 Path Support** - Paste S3 keys without full URIs
+  - Recognizes `zendesk-tickets/` and `exa-to-gt/` prefixes
+  - Automatically prepends `gt-logs` bucket
+  - Examples: `zendesk-tickets/ZD-145980/file.tar.gz`
+  - Reduces manual path construction
+
+- ✅ **Tilde Expansion Fix** - `~` character now works in download paths
+  - Fixed bug in CLI download output paths (`--output ~/Downloads`)
+  - Fixed bug in interactive download directory selection
+  - Fixed bug in interactive single file save paths
+  - Error messages show both original and expanded paths
+
+- ✅ **Improved Input Parsing** - Better handling of combined ZD+Jira formats
+  - Enhanced `parse_s3_path()` to properly split and validate both parts
+  - All existing input formats remain backward compatible
 
 #### v1.6.1 - Performance & UX Improvements
 
