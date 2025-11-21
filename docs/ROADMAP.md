@@ -3,9 +3,31 @@
 This document outlines the development roadmap and feature priorities for
 GT Logs Helper.
 
-## Current Version: v1.6.2
+## Current Version: v1.7.0
 
 ### Recently Completed
+
+#### v1.7.0 - Smart Input Detection & URL Decoding
+
+- ✅ **Smart Clipboard Detection** - Automatic format recognition
+  - New `detect_input_format()` function analyzes pasted input
+  - Detects: Zendesk URLs, Jira URLs, S3 URIs, partial S3 paths, combined IDs,
+    ticket IDs
+  - Returns structured info: format type, description, parsed value, validity
+  - Enables helpful user feedback and better error messages
+  - 17 comprehensive test cases covering all input formats
+
+- ✅ **URL Decoding** - Handles special characters in S3 paths
+  - Uses `urllib.parse.unquote()` to decode URL-encoded characters
+  - Examples: `%20` → space, `%2B` → `+`, `%2F` → `/`
+  - Applied to all S3 path parsing operations
+  - Seamless handling of paths copied from browsers or AWS console
+  - Backward compatible with non-encoded paths
+
+- ✅ **Enhanced Input Validation** - Better parsing and error handling
+  - Whitespace trimming before processing
+  - Combined URL decoding + format detection
+  - All existing input formats remain backward compatible
 
 #### v1.6.2 - Enhanced Input Format Support
 

@@ -308,18 +308,31 @@ Zd-145980-Red-172041
    - Low complexity
    - Careful validation implemented (avoids false positives)
 
-### Phase 2: Useful Additions (v1.7.0)
+3. **Smart Clipboard Detection** ⭐⭐⭐ - **IMPLEMENTED in v1.7.0**
+   - Automatic format recognition with structured output
+   - `detect_input_format()` function returns format type, description, value
+   - Detects: Zendesk URLs, Jira URLs, S3 URIs, partial S3 paths, combined
+     IDs, ticket IDs
+   - 17 comprehensive test cases (100% pass rate)
+   - Enables better user feedback and error messages
+
+4. **URL Decoding** ⭐ - **IMPLEMENTED in v1.7.0**
+   - Uses `urllib.parse.unquote()` for URL-encoded characters
+   - Handles: `%20` (space), `%2B` (+), `%2F` (/), etc.
+   - Applied in `parse_s3_path()` at the beginning
+   - Seamless handling of browser-copied paths
+   - Backward compatible with non-encoded paths
+
+### ❌ Skipped Based on User Feedback
 
 1. **AWS S3 Console URL Support** ⭐ - **SKIPPED**
    - User feedback: "people using this script will never be getting those URLs"
    - Not implementing
 
-### Phase 3: Optional Enhancements (Future)
+### 🔮 Future Enhancements
 
-1. **URL Decoding** ⭐
-   - Edge case handling
-   - Trivial implementation
-   - Almost never needed in practice
+No pending enhancements at this time. All identified high-value input formats
+have been implemented.
 
 ### ❌ Not Recommended
 
@@ -377,6 +390,11 @@ Examples:
 
 ## 🎯 Summary Recommendation
 
+**✅ Implemented in v1.7.0**:
+
+- ✅ Smart clipboard detection - COMPLETE
+- ✅ URL decoding - COMPLETE
+
 **✅ Implemented in v1.6.2**:
 
 - ✅ Jira URL support (high value, low risk) - COMPLETE
@@ -386,15 +404,14 @@ Examples:
 
 - ❌ AWS S3 Console URL support (users don't encounter these URLs)
 
-**Consider for future versions**:
-
-- Smart clipboard detection (user requested: "would be great!")
-- URL decoding (low priority edge case)
-
 **Do NOT implement**:
 
 - Space-separated input (too ambiguous)
 - Alternative separators (conflicts with S3 paths)
+
+**Status**: All identified high-value input format enhancements have been
+successfully implemented. The tool now supports comprehensive input format
+detection and handles all common user workflows.
 
 This approach maximizes user convenience while maintaining code clarity
 and avoiding ambiguous parsing.

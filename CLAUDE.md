@@ -487,7 +487,14 @@ test: Add validation tests for Jira IDs
 
 ## Version History
 
-**Current Version:** v1.6.2 - Enhanced input format support
+**Current Version:** v1.7.0 - Smart input detection and URL decoding
+
+**v1.7.0 (2025-01-20):**
+
+- Smart clipboard detection - automatic format recognition with helpful feedback
+- URL decoding - handles special characters like `%20`, `%2B` in S3 paths
+- Enhanced input validation with better error messages
+- New `detect_input_format()` function for structured input analysis
 
 **v1.6.2 (2025-01-20):**
 

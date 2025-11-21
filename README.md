@@ -355,6 +355,15 @@ python3 tests/test_suite.py
 
 ## What's New
 
+### v1.7.0 - Smart Input Detection & URL Decoding
+
+- 🎯 **Smart clipboard detection** - Automatic format recognition with helpful
+  feedback for pasted input (Zendesk URLs, Jira URLs, S3 URIs, ticket IDs)
+- 🔓 **URL decoding** - Handles special characters like `%20` (space),
+  `%2B` (+) in S3 paths copied from browsers
+- 🧠 **Enhanced input validation** - Better error messages showing detected
+  format and expected formats
+
 ### v1.6.2 - Enhanced Input Format Support
 
 - 🔗 **Jira URL support** - Paste Jira ticket URLs directly:

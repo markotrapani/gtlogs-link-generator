@@ -5,7 +5,7 @@ Uploads and downloads Redis Support packages to/from S3 buckets.
 Generates S3 bucket URLs and AWS CLI commands for Redis Support packages.
 """
 
-VERSION = "1.6.2"
+VERSION = "1.7.0"
 
 import argparse
 import configparser
@@ -18,6 +18,7 @@ import sys
 import time
 import urllib.request
 import urllib.error
+import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, cast
@@ -1400,6 +1401,105 @@ class GTLogsHelper:
         return None
 
     @staticmethod
+    def detect_input_format(input_str: str) -> dict:
+        """Detect the format of pasted input and provide analysis.
+
+        Args:
+            input_str: User input (could be URL, ID, path, etc.)
+
+        Returns:
+            dict with keys: 'format', 'description', 'value', 'valid'
+        """
+        # Clean input
+        cleaned = input_str.strip()
+
+        # URL-decode first
+        decoded = urllib.parse.unquote(cleaned)
+
+        # Check for Zendesk URL
+        if "zendesk.com" in decoded.lower() and "/tickets/" in decoded.lower():
+            ticket_id = GTLogsHelper.extract_ticket_id_from_url(decoded)
+            if ticket_id:
+                # Format the ticket ID with ZD- prefix
+                formatted_id = GTLogsHelper.validate_zendesk_id(ticket_id)
+                return {
+                    'format': 'zendesk_url',
+                    'description': 'Zendesk ticket URL',
+                    'value': formatted_id,
+                    'valid': True
+                }
+
+        # Check for Jira URL
+        if "/browse/" in decoded.lower():
+            jira_id = GTLogsHelper.extract_jira_id_from_url(decoded)
+            if jira_id:
+                return {
+                    'format': 'jira_url',
+                    'description': 'Jira ticket URL',
+                    'value': jira_id,
+                    'valid': True
+                }
+
+        # Check for full S3 URI
+        if decoded.startswith("s3://"):
+            return {
+                'format': 's3_uri',
+                'description': 'Full S3 URI',
+                'value': decoded,
+                'valid': True
+            }
+
+        # Check for partial S3 path (key-only)
+        if decoded.startswith("zendesk-tickets/") or decoded.startswith("exa-to-gt/"):
+            return {
+                'format': 'partial_s3_path',
+                'description': 'Partial S3 path (key-only)',
+                'value': decoded,
+                'valid': True
+            }
+
+        # Check for combined ZD+Jira ID
+        if "-RED-" in decoded.upper() or "-MOD-" in decoded.upper():
+            return {
+                'format': 'combined_id',
+                'description': 'Combined Zendesk + Jira ID',
+                'value': decoded,
+                'valid': True
+            }
+
+        # Check for Zendesk ID (formatted or numeric)
+        try:
+            zd_id = GTLogsHelper.validate_zendesk_id(decoded)
+            return {
+                'format': 'zendesk_id',
+                'description': 'Zendesk ticket ID',
+                'value': zd_id,
+                'valid': True
+            }
+        except:
+            pass
+
+        # Check for Jira ID
+        try:
+            jira_id = GTLogsHelper.validate_jira_id(decoded)
+            return {
+                'format': 'jira_id',
+                'description': 'Jira ticket ID',
+                'value': jira_id,
+                'valid': True
+            }
+        except:
+            pass
+
+        # Unknown format
+        return {
+            'format': 'unknown',
+            'description': 'Unknown format',
+            'value': decoded,
+            'valid': False
+        }
+
+    @staticmethod
     def extract_jira_id_from_url(url: str) -> Optional[str]:
         """Extract Jira ticket ID from a Jira URL.
 
@@ -1432,6 +1532,13 @@ class GTLogsHelper:
         Returns:
             tuple: (bucket, key) or (None, None) if invalid
         """
+        # Clean input: strip whitespace
+        s3_path = s3_path.strip()
+
+        # URL-decode the path first to handle special characters
+        # Example: file%20with%20spaces.tar.gz → file with spaces.tar.gz
+        s3_path = urllib.parse.unquote(s3_path)
+
         # Handle Zendesk URLs - extract ticket ID first
         if "zendesk.com" in s3_path.lower():
             ticket_id = GTLogsHelper.extract_ticket_id_from_url(s3_path)
