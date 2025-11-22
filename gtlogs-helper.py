@@ -349,8 +349,9 @@ def display_progress_bar(completed: int, total: int, speed_str: str = "", bar_le
         except (ValueError, ZeroDivisionError):
             pass
 
-    # Display progress bar
-    print(f"\r   [{bar}] {percentage}% | {completed_str}/{total_str} | {speed_str} {eta_str}", end='', flush=True)
+    # Display progress bar (pad with spaces to clear previous longer lines)
+    progress_line = f"\r   [{bar}] {percentage}% | {completed_str}/{total_str} | {speed_str} {eta_str}"
+    print(f"{progress_line:<120}", end='', flush=True)
 
 
 class GTLogsHelper:

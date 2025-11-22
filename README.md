@@ -4,7 +4,7 @@ A lightning-fast command-line tool for uploading and downloading Redis Support
 packages to/from AWS S3. Streamline your workflow with automatic
 authentication, batch operations, and intelligent path generation.
 
-**Current Version:** v1.6.1 |
+**Current Version:** v1.7.2 |
 **[View Wiki](https://github.com/markotrapani/gtlogs-helper/wiki)** |
 **[Changelog](#whats-new)**
 
@@ -361,6 +361,12 @@ python3 tests/test_suite.py
 ---
 
 ## What's New
+
+### v1.7.2 - Progress Bar Display Fix
+
+- 🐛 **Fixed progress bar artifacts** - Resolved issue where ETA text would
+  overlap (e.g., "3sss44s" instead of "3s") during downloads by properly
+  clearing previous line content
 
 ### v1.7.1 - Jira-Based Download & Smart Fallback
 

@@ -3,9 +3,16 @@
 This document outlines the development roadmap and feature priorities for
 GT Logs Helper.
 
-## Current Version: v1.7.1
+## Current Version: v1.7.2
 
 ### Recently Completed
+
+#### v1.7.2 - Progress Bar Display Fix
+
+- ✅ **Fixed Progress Bar Artifacts** - Resolved display issues
+  - Fixed bug where ETA text would overlap (e.g., "3sss44s" instead of "3s")
+  - Progress bar now pads line to 120 characters to clear previous content
+  - Ensures clean, artifact-free progress display during downloads
 
 #### v1.7.1 - Jira-Based Download & Smart Fallback
 

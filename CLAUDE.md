@@ -487,7 +487,12 @@ test: Add validation tests for Jira IDs
 
 ## Version History
 
-**Current Version:** v1.7.1 - Jira-based download and smart fallback
+**Current Version:** v1.7.2 - Progress bar display fix
+
+**v1.7.2 (2025-01-21):**
+
+- Fixed progress bar display bug where ETA text would overlap (e.g., "3sss44s")
+- Progress bar now properly clears previous line content to prevent artifacts
 
 **v1.7.1 (2025-01-21):**
 
