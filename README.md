@@ -362,6 +362,17 @@ python3 tests/test_suite.py
 
 ## What's New
 
+### v1.7.1 - Jira-Based Download & Smart Fallback
+
+- 🎯 **Jira-based download** - Download packages using just Jira URL or ID,
+  automatically finds associated Zendesk ticket
+- 🔍 **Smart S3 search** - Searches both `zendesk-tickets/` and `exa-to-gt/`
+  locations for ZD tickets
+- 📂 **Directory auto-detection** - Handles paths without trailing slashes,
+  automatically retries as directory on 404
+- 🔧 **Multiple match handling** - Interactive selection when multiple packages
+  found for same Jira ticket
+
 ### v1.7.0 - Smart Input Detection & URL Decoding
 
 - 🎯 **Smart clipboard detection** - Automatic format recognition with helpful

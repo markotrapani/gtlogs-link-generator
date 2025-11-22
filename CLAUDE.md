@@ -487,7 +487,14 @@ test: Add validation tests for Jira IDs
 
 ## Version History
 
-**Current Version:** v1.7.0 - Smart input detection and URL decoding
+**Current Version:** v1.7.1 - Jira-based download and smart fallback
+
+**v1.7.1 (2025-01-21):**
+
+- Jira-based download - download packages using just Jira URL or ID
+- Smart S3 search - automatic fallback from zendesk-tickets/ to exa-to-gt/
+- Directory auto-detection - handles paths without trailing slashes
+- New functions: `find_s3_path_by_jira_id()`, `find_s3_path_by_zendesk_id()`, `is_jira_only_input()`
 
 **v1.7.0 (2025-01-20):**
 

@@ -3,9 +3,38 @@
 This document outlines the development roadmap and feature priorities for
 GT Logs Helper.
 
-## Current Version: v1.7.0
+## Current Version: v1.7.1
 
 ### Recently Completed
+
+#### v1.7.1 - Jira-Based Download & Smart Fallback
+
+- ✅ **Jira-Based Download** - Download packages using Jira tickets
+  - New `find_s3_path_by_jira_id()` searches S3 for Jira-linked packages
+  - Works with Jira URLs (`https://redislabs.atlassian.net/browse/RED-177450`)
+  - Works with Jira IDs (`RED-177450`, `MOD-12345`)
+  - Automatically finds associated Zendesk ticket in `exa-to-gt/`
+  - Interactive selection when multiple matches found
+  - Works in both interactive and CLI modes
+
+- ✅ **Smart S3 Search Fallback** - Automatic location fallback
+  - New `find_s3_path_by_zendesk_id()` searches `exa-to-gt/` by ZD ticket
+  - When ZD ticket has no files in `zendesk-tickets/`, checks `exa-to-gt/`
+  - Finds Jira-linked packages automatically
+  - User-friendly prompts for alternative paths
+  - Reduces manual path construction
+
+- ✅ **Directory Auto-Detection** - Handles missing trailing slashes
+  - Detects 404 errors when downloading
+  - Automatically retries path as directory (adds `/`)
+  - Lists all files in directory for selection
+  - Works in both interactive and CLI modes
+  - Graceful degradation on failures
+
+- ✅ **New Helper Functions** - Enhanced input detection
+  - `is_jira_only_input()` - Detects Jira-only input (not combined with ZD)
+  - Validates Jira URLs and IDs separately from combined formats
+  - Enables smart routing to appropriate S3 search
 
 #### v1.7.0 - Smart Input Detection & URL Decoding
 
