@@ -1523,6 +1523,38 @@ class GTLogsHelper:
         return None
 
     @staticmethod
+    def is_jira_only_input(input_str: str) -> Optional[str]:
+        """Check if input is Jira-only (not combined with Zendesk ID).
+
+        Args:
+            input_str: User input string
+
+        Returns:
+            Jira ID if input is Jira-only, None otherwise
+        """
+        cleaned = input_str.strip()
+
+        # Check for Jira URL first
+        if "/browse/" in cleaned.lower():
+            jira_id = GTLogsHelper.extract_jira_id_from_url(cleaned)
+            if jira_id:
+                return jira_id
+
+        # Check for Jira ID format (RED-#### or MOD-####)
+        # But NOT combined format (ZD-####-RED-#### or ####-RED-####)
+        jira_pattern = r'^(RED|MOD)-\d+$'
+        match = re.search(jira_pattern, cleaned, re.IGNORECASE)
+        if match:
+            # Validate it's a proper Jira ID
+            try:
+                jira_id = GTLogsHelper.validate_jira_id(cleaned)
+                return jira_id
+            except:
+                pass
+
+        return None
+
+    @staticmethod
     def parse_s3_path(s3_path: str):
         """Parse an S3 path or partial path to extract bucket and key.
 
@@ -1594,6 +1626,126 @@ class GTLogsHelper:
             return parts[0], parts[1]
 
         return None, None
+
+    def find_s3_path_by_jira_id(self, jira_id: str, aws_profile: str = "gt-logs"):
+        """Find S3 path by searching for directories containing the Jira ID.
+
+        Args:
+            jira_id: Jira ticket ID (e.g., RED-177450)
+            aws_profile: AWS profile to use
+
+        Returns:
+            tuple: (status, data) where:
+                - status is "found", "multiple", "none", or "error"
+                - data is the path string (for "found"), list of paths
+                  (for "multiple"), or error message (for "error"/"none")
+        """
+        # Validate Jira ID
+        try:
+            jira_id = GTLogsHelper.validate_jira_id(jira_id)
+        except ValueError as e:
+            return "error", str(e)
+
+        # List all directories in exa-to-gt/
+        cmd = [
+            "aws", "s3", "ls",
+            "s3://gt-logs/exa-to-gt/",
+            "--profile", aws_profile
+        ]
+
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            if result.returncode != 0:
+                return "error", f"Failed to list S3 directories: {result.stderr}"
+
+            # Parse output to find matching directories
+            # Output format: "PRE ZD-150015-RED-177450/"
+            matching_paths = []
+            for line in result.stdout.splitlines():
+                if line.strip().startswith("PRE "):
+                    # Extract directory name
+                    dir_name = line.strip()[4:].rstrip('/')
+                    # Check if it ends with the Jira ID
+                    if dir_name.endswith(f"-{jira_id}"):
+                        matching_paths.append(f"exa-to-gt/{dir_name}/")
+
+            if len(matching_paths) == 0:
+                return "none", f"No S3 paths found for Jira ID {jira_id}"
+            elif len(matching_paths) == 1:
+                return "found", matching_paths[0]
+            else:
+                return "multiple", matching_paths
+
+        except subprocess.TimeoutExpired:
+            return "error", "Timeout while searching S3"
+        except Exception as e:
+            return "error", f"Error searching S3: {str(e)}"
+
+    def find_s3_path_by_zendesk_id(self, zd_id: str, aws_profile: str = "gt-logs"):
+        """Find S3 path in exa-to-gt by searching for directories starting with ZD ID.
+
+        Args:
+            zd_id: Zendesk ticket ID (e.g., ZD-150015 or 150015)
+            aws_profile: AWS profile to use
+
+        Returns:
+            tuple: (status, data) where:
+                - status is "found", "multiple", "none", or "error"
+                - data is the path string (for "found"), list of paths
+                  (for "multiple"), or error message (for "error"/"none")
+        """
+        # Validate Zendesk ID
+        try:
+            zd_id = GTLogsHelper.validate_zendesk_id(zd_id)
+        except ValueError as e:
+            return "error", str(e)
+
+        # List all directories in exa-to-gt/
+        cmd = [
+            "aws", "s3", "ls",
+            "s3://gt-logs/exa-to-gt/",
+            "--profile", aws_profile
+        ]
+
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            if result.returncode != 0:
+                return "error", f"Failed to list S3 directories: {result.stderr}"
+
+            # Parse output to find matching directories
+            # Output format: "PRE ZD-150015-RED-177450/"
+            matching_paths = []
+            for line in result.stdout.splitlines():
+                if line.strip().startswith("PRE "):
+                    # Extract directory name
+                    dir_name = line.strip()[4:].rstrip('/')
+                    # Check if it starts with the Zendesk ID
+                    if dir_name.startswith(f"{zd_id}-"):
+                        matching_paths.append(f"exa-to-gt/{dir_name}/")
+
+            if len(matching_paths) == 0:
+                return "none", f"No S3 paths found for Zendesk ID {zd_id} in exa-to-gt/"
+            elif len(matching_paths) == 1:
+                return "found", matching_paths[0]
+            else:
+                return "multiple", matching_paths
+
+        except subprocess.TimeoutExpired:
+            return "error", "Timeout while searching S3"
+        except Exception as e:
+            return "error", f"Error searching S3: {str(e)}"
 
     def list_s3_files(self, bucket, prefix, aws_profile="gt-logs"):
         """List files in an S3 bucket with given prefix.
@@ -2351,16 +2503,75 @@ def interactive_download_mode(debug=False):
         print("  - Ticket ID: ZD-145980 (will list available files)")
         print("  - Ticket + Jira: ZD-145980-RED-172041")
         print("  - Zendesk URL: https://redislabs.zendesk.com/agent/tickets/150002")
+        print("  - Jira URL: https://redislabs.atlassian.net/browse/RED-177450")
+        print("  - Jira ID: RED-177450 (searches for associated support packages)")
         print()
 
         while True:
             s3_history = helper.get_history('s3_path')
-            s3_input = input_with_esc_detection("Enter S3 path, ticket ID, or Zendesk URL: ", s3_history).strip()
+            s3_input = input_with_esc_detection("Enter S3 path, ticket ID, Zendesk URL, or Jira URL: ", s3_history).strip()
             check_exit_input(s3_input)
 
             if not s3_input:
                 print("❌ S3 path or ticket ID is required\n")
                 continue
+
+            # Check if input is Jira-only (URL or ID)
+            jira_id = GTLogsHelper.is_jira_only_input(s3_input)
+            if jira_id:
+                # Need to get AWS profile first for S3 search
+                print(f"\n🔍 Detected Jira ticket: {jira_id}")
+                print("Searching S3 for associated support packages...\n")
+
+                # Get AWS profile (needed for search)
+                default_profile = helper.get_default_aws_profile()
+                if default_profile:
+                    search_profile = default_profile
+                else:
+                    search_profile = "gt-logs"
+
+                # Search for S3 paths matching this Jira ID
+                status, data = helper.find_s3_path_by_jira_id(jira_id, search_profile)
+
+                if status == "found":
+                    # Single match found
+                    print(f"✓ Found S3 path: s3://gt-logs/{data}\n")
+                    s3_input = f"s3://gt-logs/{data}"
+                elif status == "multiple":
+                    # Multiple matches found - let user choose
+                    print(f"Found {len(data)} S3 paths for {jira_id}:\n")
+                    for i, path in enumerate(data, 1):
+                        # Extract ZD ticket from path for display
+                        zd_match = re.search(r'(ZD-\d+)', path)
+                        zd_ticket = zd_match.group(1) if zd_match else "Unknown"
+                        print(f"  {i}. {zd_ticket}: s3://gt-logs/{path}")
+
+                    print()
+                    choice = input_with_esc_detection("Select path number (or press Enter to cancel): ").strip()
+                    check_exit_input(choice)
+
+                    if not choice:
+                        print("Cancelled\n")
+                        continue
+
+                    try:
+                        idx = int(choice) - 1
+                        if 0 <= idx < len(data):
+                            s3_input = f"s3://gt-logs/{data[idx]}"
+                            print(f"\n✓ Selected: {s3_input}\n")
+                        else:
+                            print("❌ Invalid selection\n")
+                            continue
+                    except ValueError:
+                        print("❌ Invalid selection\n")
+                        continue
+                elif status == "none":
+                    print(f"❌ {data}")
+                    print(f"   No support packages found for Jira ticket {jira_id}\n")
+                    continue
+                else:  # error
+                    print(f"❌ {data}\n")
+                    continue
 
             # Parse the S3 path
             bucket, key = helper.parse_s3_path(s3_input)
@@ -2420,8 +2631,76 @@ def interactive_download_mode(debug=False):
             files = helper.list_s3_files(bucket, key, aws_profile)
 
             if not files:
-                print(f"❌ No files found in s3://{bucket}/{key}")
-                return 1
+                # Check if this is a zendesk-tickets path - if so, try exa-to-gt fallback
+                if key.startswith("zendesk-tickets/"):
+                    # Extract ZD ID from the key
+                    zd_match = re.search(r'(ZD-\d+)', key)
+                    if zd_match:
+                        zd_id = zd_match.group(1)
+                        print(f"❌ No files found in s3://{bucket}/{key}")
+                        print(f"🔍 Checking exa-to-gt/ for {zd_id} with Jira tickets...\n")
+
+                        # Search exa-to-gt for this ZD ID
+                        status, data = helper.find_s3_path_by_zendesk_id(zd_id, aws_profile)
+
+                        if status == "found":
+                            # Single match found
+                            print(f"✓ Found alternative path: s3://gt-logs/{data}")
+                            use_alt = input_with_esc_detection("Use this path instead? (Y/n): ").strip().lower()
+                            check_exit_input(use_alt)
+
+                            if use_alt == '' or use_alt in ['y', 'yes']:
+                                bucket = "gt-logs"
+                                key = data
+                                print(f"\n🔍 Listing files in s3://{bucket}/{key}...\n")
+                                files = helper.list_s3_files(bucket, key, aws_profile)
+                                if not files:
+                                    print(f"❌ No files found in s3://{bucket}/{key}")
+                                    return 1
+                            else:
+                                return 1
+                        elif status == "multiple":
+                            # Multiple matches found
+                            print(f"✓ Found {len(data)} alternative path(s):\n")
+                            for i, path in enumerate(data, 1):
+                                # Extract Jira ID from path for display
+                                jira_match = re.search(r'(RED|MOD)-\d+', path)
+                                jira_id = jira_match.group(0) if jira_match else "Unknown"
+                                print(f"  {i}. {jira_id}: s3://gt-logs/{path}")
+
+                            print()
+                            choice = input_with_esc_detection("Select path number (or press Enter to cancel): ").strip()
+                            check_exit_input(choice)
+
+                            if not choice:
+                                return 1
+
+                            try:
+                                idx = int(choice) - 1
+                                if 0 <= idx < len(data):
+                                    bucket = "gt-logs"
+                                    key = data[idx]
+                                    print(f"\n🔍 Listing files in s3://{bucket}/{key}...\n")
+                                    files = helper.list_s3_files(bucket, key, aws_profile)
+                                    if not files:
+                                        print(f"❌ No files found in s3://{bucket}/{key}")
+                                        return 1
+                                else:
+                                    print("❌ Invalid selection")
+                                    return 1
+                            except ValueError:
+                                print("❌ Invalid selection")
+                                return 1
+                        else:
+                            # No matches in exa-to-gt either
+                            print(f"❌ No files found in exa-to-gt/ for {zd_id}")
+                            return 1
+                    else:
+                        print(f"❌ No files found in s3://{bucket}/{key}")
+                        return 1
+                else:
+                    print(f"❌ No files found in s3://{bucket}/{key}")
+                    return 1
 
             print(f"Found {len(files)} file(s):")
             for i, file in enumerate(files, 1):
@@ -2499,8 +2778,75 @@ def interactive_download_mode(debug=False):
 
             # Download the file
             if not helper.download_from_s3(bucket, key, local_path, aws_profile):
-                print("❌ Download failed")
-                return 1
+                # Check if it might be a directory (missing trailing slash)
+                if not key.endswith("/"):
+                    print(f"\n💡 File download failed. Checking if this is a directory...\n")
+                    dir_key = key + "/"
+                    files = helper.list_s3_files(bucket, dir_key, aws_profile)
+
+                    if files:
+                        # It's a directory! Let user select files
+                        print(f"✓ Found {len(files)} file(s) in directory:\n")
+                        for i, file in enumerate(files, 1):
+                            print(f"  {i}. {file}")
+
+                        # Ask which file(s) to download
+                        print("\nSelect files to download:")
+                        print("  - Enter file number(s) separated by commas (e.g., 1,3,5)")
+                        print("  - Enter 'all' or 'a' to download all files")
+                        print("  - Press Enter to cancel")
+                        print()
+
+                        selection = input_with_esc_detection("Your selection: ").strip()
+                        check_exit_input(selection)
+
+                        if not selection:
+                            print("\nDownload cancelled\n")
+                            return 0
+
+                        files_to_download = []
+                        if selection.lower() in ['all', 'a']:
+                            files_to_download = files
+                        else:
+                            try:
+                                indices = [int(x.strip()) - 1 for x in selection.split(',')]
+                                files_to_download = [files[i] for i in indices if 0 <= i < len(files)]
+                            except (ValueError, IndexError):
+                                print("❌ Invalid selection\n")
+                                return 1
+
+                        if not files_to_download:
+                            print("❌ No valid files selected\n")
+                            return 1
+
+                        # Get download directory
+                        local_dir = input_with_esc_detection("Local directory (press Enter for current directory): ").strip()
+                        check_exit_input(local_dir)
+
+                        if not local_dir:
+                            local_dir = "."
+                        else:
+                            local_dir = os.path.expanduser(local_dir)
+
+                        if local_dir != "." and not os.path.exists(local_dir):
+                            os.makedirs(local_dir, exist_ok=True)
+                            print(f"✓ Created directory: {local_dir}")
+
+                        # Download selected files
+                        print(f"\n📥 Downloading {len(files_to_download)} file(s)...\n")
+                        success_count = 0
+                        for file in files_to_download:
+                            local_file_path = os.path.join(local_dir, os.path.basename(file))
+                            if helper.download_from_s3(bucket, file, local_file_path, aws_profile):
+                                success_count += 1
+
+                        print(f"\n✅ Downloaded {success_count}/{len(files_to_download)} file(s) successfully")
+                    else:
+                        print("❌ Download failed")
+                        return 1
+                else:
+                    print("❌ Download failed")
+                    return 1
 
         # Save history
         helper._save_history()
@@ -2663,10 +3009,46 @@ Examples:
 
     # Handle download mode
     if args.download_path:
+        download_input = args.download_path
+
+        # Check if input is Jira-only (URL or ID)
+        jira_id = GTLogsHelper.is_jira_only_input(download_input)
+        if jira_id:
+            print(f"\n🔍 Detected Jira ticket: {jira_id}")
+            print("Searching S3 for associated support packages...\n")
+
+            # Determine AWS profile for search
+            aws_profile = args.aws_profile or helper.get_default_aws_profile() or "gt-logs"
+
+            # Search for S3 paths matching this Jira ID
+            status, data = helper.find_s3_path_by_jira_id(jira_id, aws_profile)
+
+            if status == "found":
+                # Single match found
+                print(f"✓ Found S3 path: s3://gt-logs/{data}\n")
+                download_input = f"s3://gt-logs/{data}"
+            elif status == "multiple":
+                # Multiple matches found - show and error (non-interactive)
+                print(f"❌ Multiple S3 paths found for {jira_id}:")
+                for i, path in enumerate(data, 1):
+                    # Extract ZD ticket from path for display
+                    zd_match = re.search(r'(ZD-\d+)', path)
+                    zd_ticket = zd_match.group(1) if zd_match else "Unknown"
+                    print(f"  {i}. {zd_ticket}: s3://gt-logs/{path}")
+                print("\nPlease specify the full S3 path or use interactive mode (-i)")
+                return 1
+            elif status == "none":
+                print(f"❌ {data}")
+                print(f"   No support packages found for Jira ticket {jira_id}")
+                return 1
+            else:  # error
+                print(f"❌ {data}")
+                return 1
+
         # Parse the S3 path
-        bucket, key = helper.parse_s3_path(args.download_path)
+        bucket, key = helper.parse_s3_path(download_input)
         if not bucket or not key:
-            print(f"❌ Invalid S3 path or ticket ID: {args.download_path}")
+            print(f"❌ Invalid S3 path or ticket ID: {download_input}")
             return 1
 
         # Determine AWS profile
@@ -2688,8 +3070,48 @@ Examples:
             print(f"\n🔍 Listing files in s3://{bucket}/{key}...\n")
             files = helper.list_s3_files(bucket, key, aws_profile)
             if not files:
-                print(f"❌ No files found")
-                return 1
+                # Check if this is a zendesk-tickets path - if so, try exa-to-gt fallback
+                if key.startswith("zendesk-tickets/"):
+                    # Extract ZD ID from the key
+                    zd_match = re.search(r'(ZD-\d+)', key)
+                    if zd_match:
+                        zd_id = zd_match.group(1)
+                        print(f"❌ No files found in s3://{bucket}/{key}")
+                        print(f"🔍 Checking exa-to-gt/ for {zd_id} with Jira tickets...\n")
+
+                        # Search exa-to-gt for this ZD ID
+                        status, data = helper.find_s3_path_by_zendesk_id(zd_id, aws_profile)
+
+                        if status == "found":
+                            # Single match found - use it automatically in CLI mode
+                            print(f"✓ Found alternative path: s3://gt-logs/{data}")
+                            bucket = "gt-logs"
+                            key = data
+                            print(f"\n🔍 Listing files in s3://{bucket}/{key}...\n")
+                            files = helper.list_s3_files(bucket, key, aws_profile)
+                            if not files:
+                                print(f"❌ No files found in s3://{bucket}/{key}")
+                                return 1
+                        elif status == "multiple":
+                            # Multiple matches found - show and error (CLI mode)
+                            print(f"❌ Multiple alternative paths found for {zd_id}:")
+                            for i, path in enumerate(data, 1):
+                                # Extract Jira ID from path for display
+                                jira_match = re.search(r'(RED|MOD)-\d+', path)
+                                jira_id = jira_match.group(0) if jira_match else "Unknown"
+                                print(f"  {i}. {jira_id}: s3://gt-logs/{path}")
+                            print("\nPlease specify the full S3 path or use interactive mode (-i)")
+                            return 1
+                        else:
+                            # No matches in exa-to-gt either
+                            print(f"❌ No files found in exa-to-gt/ for {zd_id}")
+                            return 1
+                    else:
+                        print(f"❌ No files found")
+                        return 1
+                else:
+                    print(f"❌ No files found")
+                    return 1
 
             print(f"Found {len(files)} file(s). Downloading all...")
             for file in files:
@@ -2701,7 +3123,22 @@ Examples:
             if helper.download_from_s3(bucket, key, local_path, aws_profile):
                 print(f"✅ Downloaded to: {local_path}")
             else:
-                return 1
+                # Check if it might be a directory (missing trailing slash)
+                if not key.endswith("/"):
+                    print(f"\n💡 File download failed. Checking if this is a directory...\n")
+                    dir_key = key + "/"
+                    files = helper.list_s3_files(bucket, dir_key, aws_profile)
+
+                    if files:
+                        # It's a directory! Download all files
+                        print(f"✓ Found {len(files)} file(s) in directory. Downloading all...\n")
+                        for file in files:
+                            file_local_path = os.path.join(output_path, os.path.basename(file))
+                            helper.download_from_s3(bucket, file, file_local_path, aws_profile)
+                    else:
+                        return 1
+                else:
+                    return 1
         return 0
 
     # Handle directory upload mode

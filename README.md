@@ -38,6 +38,7 @@ authentication, batch operations, and intelligent path generation.
 - ⚡ **Lightning-fast UX** - Auto-submit prompts, smart defaults, instant feedback
 - 📤 **Upload Mode** - Generate S3 paths for ZD-only or ZD+Jira scenarios
 - 📥 **Download Mode** - List, select, and download files from S3
+- 🎯 **Jira-based Download** - Paste Jira URL or ID to auto-find support packages
 - 📁 **Directory Upload** - Upload entire directories with pattern filtering
   and dry-run mode
 - 🔄 **Batch Operations** - Upload/download multiple files simultaneously
@@ -126,8 +127,14 @@ Use for Engineering escalation via Jira tickets (RED-# or MOD-#).
 ### Download Examples
 
 ```bash
-# Download from ticket (lists files for selection)
+# Download from Zendesk ticket (lists files for selection)
 ./gtlogs-helper.py --download ZD-145980
+
+# Download from Jira ticket (auto-finds associated ZD ticket)
+./gtlogs-helper.py --download RED-177450
+
+# Download from Jira URL
+./gtlogs-helper.py --download https://redislabs.atlassian.net/browse/RED-177450
 
 # Download specific file
 ./gtlogs-helper.py --download s3://gt-logs/zendesk-tickets/ZD-145980/file.tar.gz
